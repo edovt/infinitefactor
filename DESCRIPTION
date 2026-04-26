@@ -1,11 +1,18 @@
 Package: infinitefactor
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
-Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+Title: Bayesian Factor Analysis with Infinite Factor Priors
+Version: 2.0.0.9000
+Authors@R: c(
+    person("Eduardo", "Vasquez", email = "eduardo.vasqueztapia@duke.edu", role = c("aut", "cre")),
+    person("Evan", "Poworoznek", email = "infinitefactorpackage@gmail.com", role = c("aut")),
+    person("Nico", "Anceschi", role = c("auth")))
+Description: Sampler and post-processing functions for semi-parametric
+    Bayesian infinite factor models. Implements different priors for the factor
+    loadings such as MGPS, Row-wise and Column-wise Dirichlet-Laplace, CUSP,
+    SIS and CMR (TODO: include references). Post-processing functions include 
+    the MatchAlign algorithm, which returns identifiable factor loadings through
+    succesive application of orthogonalization procedures and resolution of 
+    column label and sign switching (TODO: include reference).
+License: GPL (>= 3)
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3

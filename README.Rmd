@@ -1,0 +1,41 @@
+---
+output: github_document
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "man/figures/README-",
+  out.width = "100%"
+)
+```
+
+# infinitefactor
+
+<!-- badges: start -->
+<!-- badges: end -->
+
+The goal of `infinitefactor` is to provide samplers and post-processing functions for semi-parametric Bayesian infinite factor models. Implements different priors for the factor loadings such as MGPS, Row-wise and Column-wise Dirichlet-Laplace, CUSP, SIS and CMR (TODO: include references). Additionally, contains post-processing functions to return matrices that display rotational ambiguity to identifiability through successive application of orthogonalization procedures and resolution of column label and sign switching (TODO: rewrite this and include citation).
+
+Although `infinitefactor` can be used as a standalone tool, it's most important use is in the `blfr` package which implements Bayesian Latent Factor Regression models.
+
+## Installation
+
+You can install the development version of infinitefactor from [GitHub](https://github.com/) with:
+
+``` r
+# install.packages("pak")
+pak::pak("edovt/infinitefactor")
+```
+
+## Example
+
+This is a basic example which shows you how to solve a common problem:
+
+```{r example}
+library(infinitefactor)
+## basic example code
+```
