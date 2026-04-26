@@ -1,3 +1,23 @@
+#' Bayesian Factor Analysis with an MGPS prior
+#'
+#' @param X Data matrix
+#' @param iter_warmup Number of warmup iterations to run per chain.
+#' @param iter_sampling Number of post-warmup iterations to run per chain.
+#' @param adapt (logical) Adapt number of factors across samples?
+#' @param k_init If `adapt = FALSE`, the persistent number of factors. If
+#'     `adapt = TRUE`, the initial number of factors in the sampler. If `NULL`
+#'     the number of factors is selected automatically as `3*log(p)` where `p`
+#'     is the number of columns of `X`.
+#' @param prior_params Parameters of the MGPS prior.
+#' @param eps If `adapt = TRUE`, tolerance for column sums of `Lambda` in the
+#'     adaptation step.
+#' @param verbose (logical) Show progress bar?
+#'
+#' @returns List with samples for each parameter
+#'
+#' @export
+#' @examples
+#' NULL
 bfa_mgps <- function(
   X,
   iter_warmup = 1000,

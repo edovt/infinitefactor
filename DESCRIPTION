@@ -4,7 +4,7 @@ Version: 2.0.0.9000
 Authors@R: c(
     person("Eduardo", "Vasquez", email = "eduardo.vasqueztapia@duke.edu", role = c("aut", "cre")),
     person("Evan", "Poworoznek", email = "infinitefactorpackage@gmail.com", role = c("aut")),
-    person("Nico", "Anceschi", role = c("auth")))
+    person("Nico", "Anceschi", role = c("aut")))
 Description: Sampler and post-processing functions for semi-parametric
     Bayesian infinite factor models. Implements different priors for the factor
     loadings such as MGPS, Row-wise and Column-wise Dirichlet-Laplace, CUSP,
