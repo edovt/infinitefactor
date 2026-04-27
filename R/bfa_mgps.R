@@ -33,7 +33,7 @@ bfa_mgps <- function(
     alpha0 = NULL,
     alpha1 = NULL
   ),
-  eps = 1e-4,
+  eps = 1e-2,
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------
@@ -41,7 +41,9 @@ bfa_mgps <- function(
   # 1. Extract dimensions and hyperparameters ------------------------------
   n <- nrow(X)
   p <- ncol(X)
-  X <- scale(X, scale = FALSE)
+  sd_X <- apply(X, 2, stats::sd)
+  scale_mat <- outer(sd_X, sd_X)
+  X <- scale(X)
 
   k <- ifelse(is.null(k_init), as.integer(3 * log(p)), k_init)
   a_sigma <- ifelse(is.null(prior_params$a_sigma), 1, prior_params$a_sigma)
@@ -67,7 +69,7 @@ bfa_mgps <- function(
   } else {
     samples <- list(
       k = numeric(iter_sampling),
-      Sigma = array(NA, dim = c(p, p, iter_sampling))
+      Omega = array(NA, dim = c(p, p, iter_sampling))
     )
   }
 
@@ -85,33 +87,35 @@ bfa_mgps <- function(
 
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
+  shape_sigma <- a_sigma + n / 2 # constant across iterations
+  shape_phi <- (nu + 1) / 2 # constant across iterations
   p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+
   for (iter in 1:total_iter) {
     # 4.1 Sample Lambda row-wise
-    Eta_crossprod <- t(Eta) %*% Eta
+    Eta_cross <- crossprod(Eta) # k×k: η'η
+    EtaTX <- crossprod(Eta, X) # k×p: η'X
     for (j in 1:p) {
-      Dj_inv <- diag(Phi[j, ] * tau)
-      V_lambda <- chol2inv(chol(Dj_inv + sigma2_inv[j] * Eta_crossprod))
-      M_lambda <- V_lambda %*% (t(Eta) %*% (sigma2_inv[j] * X[, j]))
-      Lambda[j, ] <- MASS::mvrnorm(1, M_lambda, V_lambda)
+      D_j <- diag(Phi[j, ] * tau, nrow = k)
+      V_j <- solve(D_j + sigma2_inv[j] * Eta_cross)
+      mu_j <- sigma2_inv[j] * (V_j %*% EtaTX[, j])
+      Lambda[j, ] <- mvtnorm::rmvnorm(1, mu_j, V_j)
     }
 
     # 4.2 Sample sigma_j
-    shape_sigma <- a_sigma + n / 2
     rate_sigma <- b_sigma + .5 * colSums((X - Eta %*% t(Lambda))^2)
     sigma2_inv <- stats::rgamma(p, shape_sigma, rate_sigma)
 
     # 4.3 Sample Eta row-wise
-    LtSinv <- t(Lambda) * sigma2_inv
-    V_eta <- chol2inv(chol(diag(k) + LtSinv %*% Lambda))
-    M_eta <- V_eta %*% LtSinv %*% t(X)
+    LaTSinv <- t(Lambda * sigma2_inv)
+    V_eta <- solve(diag(k) + LaTSinv %*% Lambda)
+    mu_eta <- V_eta %*% LaTSinv %*% t(X)
     for (i in 1:n) {
-      Eta[i, ] <- MASS::mvrnorm(1, M_eta[, i], V_eta)
+      Eta[i, ] <- mvtnorm::rmvnorm(1, mu_eta[, i], V_eta)
     }
 
     # 4.4 Sample Phi
-    shape_phi <- (nu + 1) / 2
-    rate_phi <- (nu + Lambda^2 %*% diag(tau)) / 2
+    rate_phi <- (nu + t(t(Lambda^2) * tau)) / 2
     Phi <- matrix(
       stats::rgamma(p * k, shape_phi, rate_phi),
       nrow = p,
@@ -175,7 +179,10 @@ bfa_mgps <- function(
         samples$tau[, c_iter] <- tau
       } else {
         samples$k[c_iter] <- k
-        samples$Sigma[,, c_iter] <- Lambda %*% t(Lambda) + diag(1 / sigma2_inv)
+        samples$Omega[,, c_iter] <- (Lambda %*%
+          t(Lambda) +
+          diag(1 / sigma2_inv)) *
+          scale_mat
       }
     }
 
