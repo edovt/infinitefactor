@@ -34,8 +34,10 @@ update_reg_params <- function(
   n,
   k
 ) {
-  list2env(reg_params, envir = environment()) # beta, sigma2_y and Omega
-  inter <- "Omega" %in% names(reg_params)
+  beta <- reg_params$beta
+  sigma2_y <- reg_params$sigma2_y
+  Omega <- reg_params$Omega
+  inter <- !is.null(Omega)
   quad_term <- if (inter) rowSums((Eta %*% Omega) * Eta) else 0
 
   # 1. Update beta

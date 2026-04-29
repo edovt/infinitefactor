@@ -42,10 +42,12 @@ latent_update_blfr <- function(
   k,
   eps
 ) {
-  list2env(reg_params, envir = environment()) # beta, sigma2_y, Omega
+  beta <- reg_params$beta
+  sigma2_y <- reg_params$sigma2_y
+  Omega <- reg_params$Omega
   Eta_new <- matrix(0, nrow = n, ncol = k)
 
-  if ("Omega" %in% names(reg_params)) {
+  if (!is.null(Omega)) {
     # MALA step
     LaTSinv <- t(Lambda * sigma2_inv)
     OEta <- tcrossprod(Omega, Eta)

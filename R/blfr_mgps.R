@@ -1,3 +1,22 @@
+#' Bayesian Latent Factor Regression with an MGPS prior
+#'
+#' @param y Response vector
+#' @param X Predictors matrix
+#' @param iter_warmup Number of warmup iterations to run per chain.
+#' @param iter_sampling Number of post-warmup iterations to run per chain.
+#' @param k Number of factors
+#' @param induced (logical) return induced effects of original predictors?
+#' @param interactions (logical) include interactions between latent factors?
+#' @param prior_params Parameters of the MGPS prior
+#' @param mala_eps If `interactions=TRUE`, step-size of the MALA step for
+#'     latent factors
+#' @param verbose (logical) Show progress bar?
+#'
+#' @returns List with samples for each parameter
+#'
+#' @export
+#' @examples
+#' NULL
 blfr_mgps <- function(
   y,
   X,
@@ -145,7 +164,7 @@ blfr_mgps <- function(
       if (induced) {
         L <- mgps_params$Lambda
         V <- solve(t(L) %*% diag(mgps_params$sigma2_inv) %*% L + diag(k))
-        A <- V %*% t(L) %*% diag(sigma2_inv)
+        A <- V %*% t(L) %*% diag(mgps_params$sigma2_inv)
         samples$beta_X[, c_iter] <- t(A) %*% reg_params$beta
       }
       if (induced && interactions) {

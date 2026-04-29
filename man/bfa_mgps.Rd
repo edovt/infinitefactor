@@ -12,7 +12,7 @@ bfa_mgps(
   k_init = NULL,
   prior_params = list(a_sigma = NULL, b_sigma = NULL, nu = NULL, a1 = NULL, a2 = NULL,
     alpha0 = NULL, alpha1 = NULL),
-  eps = 0.001,
+  eps = 0.01,
   verbose = TRUE
 )
 }

@@ -12,7 +12,11 @@ MGPS_update <- function(
   a1,
   a2
 ) {
-  list2env(mgps_params, envir = environment()) # Phi, tau, sigma2_inv, Lambda
+  Lambda <- mgps_params$Lambda
+  Phi <- mgps_params$Phi
+  sigma2_inv <- mgps_params$sigma2_inv
+  delta <- mgps_params$delta
+  tau <- mgps_params$tau
 
   # 4.1 Update Lambda row-wise
   Eta_cross <- crossprod(Eta)
