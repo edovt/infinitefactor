@@ -1,4 +1,4 @@
-#' Bayesian Factor Analysis with an MGPS prior
+#' Bayesian Factor Analysis and Covariance Estimation with an MGPS prior
 #'
 #' @param X Data matrix
 #' @param iter_warmup Number of warmup iterations to run per chain.
@@ -14,6 +14,7 @@
 #' @param verbose (logical) Show progress bar?
 #'
 #' @returns List with samples for each parameter
+#'
 #'
 #' @export
 #' @examples
@@ -37,6 +38,87 @@ bfa_mgps <- function(
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------
+  if (!is.matrix(X)) {
+    X <- as.matrix(X)
+    if (!is.numeric(X)) {
+      stop("'X' must be a numeric matrix.")
+    }
+  }
+  if (!is.numeric(X)) {
+    stop("'X' must be a numeric matrix.")
+  }
+  if (anyNA(X) || any(!is.finite(X))) {
+    stop("'X' must not contain NA, NaN, or Inf values.")
+  }
+  if (nrow(X) <= 1 || ncol(X) < 2) {
+    stop("'X' must have at least 2 rows and 2 columns.")
+  }
+  if (any(apply(X, 2, stats::sd) == 0)) {
+    stop("'X' has constant columns; remove or impute them before fitting.")
+  }
+
+  if (!is.null(k_init)) {
+    if (
+      !is.numeric(k_init) ||
+        length(k_init) != 1 ||
+        k_init != as.integer(k_init) ||
+        k_init < 1
+    ) {
+      stop("'k_init' must be a positive integer.")
+    }
+    if (k_init >= min(nrow(X), ncol(X))) {
+      stop(
+        "'k_init' must be less than min(n, p)."
+      )
+    }
+  }
+
+  if (
+    !is.numeric(iter_warmup) ||
+      length(iter_warmup) != 1 ||
+      iter_warmup != as.integer(iter_warmup) ||
+      iter_warmup < 1
+  ) {
+    stop("'iter_warmup' must be a positive integer.")
+  }
+  if (
+    !is.numeric(iter_sampling) ||
+      length(iter_sampling) != 1 ||
+      iter_sampling != as.integer(iter_sampling) ||
+      iter_sampling < 1
+  ) {
+    stop("'iter_sampling' must be a positive integer.")
+  }
+
+  if (!is.logical(adapt) || length(adapt) != 1) {
+    stop("'adapt' must be a single logical value.")
+  }
+  if (!is.logical(verbose) || length(verbose) != 1) {
+    stop("'verbose' must be a single logical value.")
+  }
+  if (!is.numeric(eps) || length(eps) != 1 || eps <= 0) {
+    stop("'eps' must be a single positive number.")
+  }
+
+  a_sigma_check <- prior_params$a_sigma %||% 1
+  b_sigma_check <- prior_params$b_sigma %||% 1
+  nu_check <- prior_params$nu %||% 3
+  a1_check <- prior_params$a1 %||% 2.1
+  a2_check <- prior_params$a2 %||% 3.1
+  if (a_sigma_check <= 0 || b_sigma_check <= 0) {
+    stop("'a_sigma' and 'b_sigma' must be positive.")
+  }
+  if (nu_check <= 0) {
+    stop("'nu' must be positive.")
+  }
+  if (adapt) {
+    alpha1_check <- prior_params$alpha1 %||% -0.0005
+    if (alpha1_check >= 0) {
+      stop(
+        "'alpha1' must be negative so that the adaptation probability decays over iterations."
+      )
+    }
+  }
 
   # 1. Extract dimensions and hyperparameters ------------------------------
   n <- nrow(X)
@@ -64,12 +146,13 @@ bfa_mgps <- function(
       sigma2_inv = matrix(NA, nrow = p, ncol = iter_sampling),
       Phi = array(NA, dim = c(p, k, iter_sampling)),
       delta = matrix(NA, nrow = k, ncol = iter_sampling),
-      tau = matrix(NA, nrow = k, ncol = iter_sampling)
+      tau = matrix(NA, nrow = k, ncol = iter_sampling),
+      Sigma_X = array(NA, dim = c(p, p, iter_sampling))
     )
   } else {
     samples <- list(
       k = numeric(iter_sampling),
-      Omega = array(NA, dim = c(p, p, iter_sampling))
+      Sigma_X = array(NA, dim = c(p, p, iter_sampling))
     )
   }
 
@@ -161,7 +244,7 @@ bfa_mgps <- function(
         samples$tau[, c_iter] <- mgps_params$tau
       } else {
         samples$k[c_iter] <- k
-        samples$Omega[,, c_iter] <- (mgps_params$Lambda %*%
+        samples$Sigma_X[,, c_iter] <- (mgps_params$Lambda %*%
           t(mgps_params$Lambda) +
           diag(1 / mgps_params$sigma2_inv)) *
           scale_mat
