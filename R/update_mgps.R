@@ -13,8 +13,8 @@ MGPS_update <- function(
   a2
 ) {
   Lambda <- mgps_params$Lambda
-  Phi <- mgps_params$Phi
   sigma2_inv <- mgps_params$sigma2_inv
+  Phi <- mgps_params$Phi
   delta <- mgps_params$delta
   tau <- mgps_params$tau
 
