@@ -1,12 +1,9 @@
 latent_update_bfa <- function(X, Lambda, sigma2_inv, n, k) {
   LaTSinv <- t(Lambda * sigma2_inv)
   V_eta <- solve(diag(k) + LaTSinv %*% Lambda)
-  mu_eta <- V_eta %*% LaTSinv %*% t(X)
-  Eta <- matrix(0, nrow = n, ncol = k)
-  for (i in 1:n) {
-    Eta[i, ] <- mvtnorm::rmvnorm(1, mu_eta[, i], V_eta)
-  }
-  Eta
+  mu_eta <- t(V_eta %*% LaTSinv %*% t(X))  # n × k
+  U <- chol(V_eta)  # upper triangular: t(U) %*% U == V_eta
+  mu_eta + matrix(rnorm(n * k), n, k) %*% U
 }
 
 mala_logdens <- function(Eta, f_r, r_r, sigma2_inv, sigma2_y) {
@@ -97,10 +94,9 @@ latent_update_blfr <- function(
     # Conjugate Gibbs
     LaTSinv <- t(Lambda * sigma2_inv)
     V_eta <- solve(tcrossprod(beta) / sigma2_y + LaTSinv %*% Lambda + diag(k))
-    mu_eta <- V_eta %*% (tcrossprod(beta, y / sigma2_y) + LaTSinv %*% t(X))
-    for (i in 1:n) {
-      Eta_new[i, ] <- mvtnorm::rmvnorm(1, mu_eta[, i], V_eta)
-    }
+    mu_eta <- t(V_eta %*% (tcrossprod(beta, y / sigma2_y) + LaTSinv %*% t(X)))  # n × k
+    U_eta <- chol(V_eta)
+    Eta_new <- mu_eta + matrix(rnorm(n * k), n, k) %*% U_eta
   }
   Eta_new
 }

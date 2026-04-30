@@ -22,10 +22,9 @@ MGPS_update <- function(
   Eta_cross <- crossprod(Eta)
   EtaTX <- crossprod(Eta, X)
   for (j in 1:p) {
-    D_j <- diag(Phi[j, ] * tau, nrow = k)
-    V_j <- solve(D_j + sigma2_inv[j] * Eta_cross)
+    V_j <- solve(diag(Phi[j, ] * tau, nrow = k) + sigma2_inv[j] * Eta_cross)
     mu_j <- sigma2_inv[j] * (V_j %*% EtaTX[, j])
-    Lambda[j, ] <- mvtnorm::rmvnorm(1, mu_j, V_j)
+    Lambda[j, ] <- mvnfast::rmvn(1, mu_j, V_j)
   }
 
   # 4.2 Update sigma_j
