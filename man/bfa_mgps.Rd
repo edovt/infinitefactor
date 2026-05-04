@@ -2,7 +2,7 @@
 % Please edit documentation in R/bfa_mgps.R
 \name{bfa_mgps}
 \alias{bfa_mgps}
-\title{Bayesian Factor Analysis with an MGPS prior}
+\title{Bayesian Factor Analysis and Covariance Estimation with an MGPS prior}
 \usage{
 bfa_mgps(
   X,
@@ -41,7 +41,7 @@ adaptation step.}
 List with samples for each parameter
 }
 \description{
-Bayesian Factor Analysis with an MGPS prior
+Bayesian Factor Analysis and Covariance Estimation with an MGPS prior
 }
 \examples{
 NULL

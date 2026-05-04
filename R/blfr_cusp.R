@@ -15,7 +15,7 @@
 #'     warmup that are considered for the adaptation of `mala_eps`
 #' @param verbose (logical) Show progress bar?
 #'
-#' @returns
+#' @returns List with samples for each parameter
 #'
 #' @export
 #' @examples
