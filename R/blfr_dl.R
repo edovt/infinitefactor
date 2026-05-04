@@ -29,7 +29,7 @@ blfr_dl <- function(
   induced = TRUE,
   interactions = FALSE,
   prior_params = list(
-    nu_y,
+    nu_y = NULL,
     beta_var = NULL,
     Omega_var = NULL,
     a_sigma = NULL,
@@ -42,6 +42,113 @@ blfr_dl <- function(
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------
+  if (!is.matrix(X)) {
+    X <- as.matrix(X)
+    if (!is.numeric(X)) {
+      stop("'X' must be a numeric matrix.")
+    }
+  }
+  if (anyNA(X) || any(!is.finite(X))) {
+    stop("'X' must not contain NA, NaN, or Inf values.")
+  }
+  if (nrow(X) <= 1 || ncol(X) < 2) {
+    stop("'X' must have at least 2 rows and 2 columns.")
+  }
+  if (any(apply(X, 2, stats::sd) == 0)) {
+    stop("'X' has constant columns; remove or impute them before fitting.")
+  }
+
+  if (!is.numeric(y) || !is.null(dim(y))) {
+    stop("'y' must be a numeric vector.")
+  }
+  if (length(y) != nrow(X)) {
+    stop("'y' must have length equal to nrow(X).")
+  }
+  if (anyNA(y) || any(!is.finite(y))) {
+    stop("'y' must not contain NA, NaN, or Inf values.")
+  }
+
+  if (!is.null(k)) {
+    if (
+      !is.numeric(k) ||
+        length(k) != 1 ||
+        k != as.integer(k) ||
+        k < 1
+    ) {
+      stop("'k' must be a positive integer.")
+    }
+    if (k >= min(nrow(X), ncol(X))) {
+      stop("'k' must be less than min(n, p).")
+    }
+  }
+
+  if (
+    !is.numeric(iter_warmup) ||
+      length(iter_warmup) != 1 ||
+      iter_warmup != as.integer(iter_warmup) ||
+      iter_warmup < 1
+  ) {
+    stop("'iter_warmup' must be a positive integer.")
+  }
+  if (
+    !is.numeric(iter_sampling) ||
+      length(iter_sampling) != 1 ||
+      iter_sampling != as.integer(iter_sampling) ||
+      iter_sampling < 1
+  ) {
+    stop("'iter_sampling' must be a positive integer.")
+  }
+
+  if (!is.logical(induced) || length(induced) != 1) {
+    stop("'induced' must be a single logical value.")
+  }
+  if (!is.logical(interactions) || length(interactions) != 1) {
+    stop("'interactions' must be a single logical value.")
+  }
+  if (!is.logical(adapt_mala_eps) || length(adapt_mala_eps) != 1) {
+    stop("'adapt_mala_eps' must be a single logical value.")
+  }
+  if (!is.logical(verbose) || length(verbose) != 1) {
+    stop("'verbose' must be a single logical value.")
+  }
+
+  if (!is.null(mala_eps)) {
+    if (!is.numeric(mala_eps) || length(mala_eps) != 1 || mala_eps <= 0) {
+      stop("'mala_eps' must be a single positive number.")
+    }
+  }
+  if (interactions && adapt_mala_eps) {
+    if (
+      !is.numeric(window_mala) ||
+        length(window_mala) != 1 ||
+        window_mala != as.integer(window_mala) ||
+        window_mala < 1
+    ) {
+      stop("'window_mala' must be a positive integer.")
+    }
+  }
+
+  nu_y_check <- prior_params$nu_y %||% 1
+  beta_var_check <- prior_params$beta_var %||% 100
+  Omega_var_check <- prior_params$Omega_var %||% 100
+  a_sigma_check <- prior_params$a_sigma %||% 1
+  b_sigma_check <- prior_params$b_sigma %||% 1
+  a_check <- prior_params$a %||% 1
+  if (nu_y_check <= 0) {
+    stop("'nu_y' must be positive.")
+  }
+  if (beta_var_check <= 0) {
+    stop("'beta_var' must be positive.")
+  }
+  if (interactions && Omega_var_check <= 0) {
+    stop("'Omega_var' must be positive.")
+  }
+  if (a_sigma_check <= 0 || b_sigma_check <= 0) {
+    stop("'a_sigma' and 'b_sigma' must be positive.")
+  }
+  if (a_check <= 0) {
+    stop("'a' must be positive.")
+  }
 
   # 1. Extract dimensions and hyperparameters ------------------------------
   n <- nrow(X)
