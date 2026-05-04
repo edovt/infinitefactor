@@ -3,7 +3,7 @@ latent_update_bfa <- function(X, Lambda, sigma2_inv, n, k) {
   V_eta <- solve(diag(k) + LaTSinv %*% Lambda)
   mu_eta <- t(V_eta %*% LaTSinv %*% t(X))
   U <- chol(V_eta)
-  mu_eta + matrix(rnorm(n * k), n, k) %*% U
+  mu_eta + matrix(stats::rnorm(n * k), n, k) %*% U
 }
 
 mala_logdens <- function(Eta, f_r, r_r, sigma2_inv, sigma2_y) {

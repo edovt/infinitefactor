@@ -269,7 +269,7 @@ blfr_mgps <- function(
 
     # 4.2 Adapt stepsize if wanted during warm-up and after window
     if (adapt_mala_eps && (iter %% window_mala == 0) && iter <= iter_warmup) {
-      acceptance_mean <- n_acceptances / window_mala
+      acceptance_mean <- mean(n_acceptances) / window_mala
       mala_eps <- exp(log(mala_eps) + acceptance_mean - 0.574)
       n_acceptances <- numeric(n)
     }

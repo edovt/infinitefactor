@@ -201,8 +201,8 @@ bfa_cusp <- function(
           )
           cusp_params$theta <- c(cusp_params$theta[active], theta_inf)
           Eta <- cbind(Eta[, active, drop = FALSE], stats::rnorm(n))
-          v_new <- c(stats::rbeta(k_star, 1, alpha), 1)
-          cusp_params$omega <- stick_break(v_new)
+          act_omega <- cusp_params$omega[active]
+          cusp_params$omega <- c(act_omega, 1 - sum(act_omega))
         } else {
           k <- k + 1
           Eta <- cbind(Eta, stats::rnorm(n))

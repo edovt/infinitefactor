@@ -33,16 +33,18 @@ CUSP_update <- function(
 
   # 3. Update z
   z <- integer(k)
+  norm_covariance <- diag(theta_inf, p)
+  t_covariance <- diag(b_theta / a_theta, p)
   log_norm <- mvnfast::dmvn(
     t(Lambda),
     rep(0, p),
-    diag(theta_inf, p),
+    norm_covariance,
     log = TRUE
   )
   log_t <- mvnfast::dmvt(
     t(Lambda),
     rep(0, p),
-    diag(b_theta / a_theta, p),
+    t_covariance,
     df = 2 * a_theta,
     log = TRUE
   )
