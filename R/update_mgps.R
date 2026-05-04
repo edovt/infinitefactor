@@ -18,7 +18,7 @@ MGPS_update <- function(
   delta <- mgps_params$delta
   tau <- mgps_params$tau
 
-  # 4.1 Update Lambda row-wise
+  # 1. Update Lambda row-wise
   Eta_cross <- crossprod(Eta)
   EtaTX <- crossprod(Eta, X)
   for (j in 1:p) {
@@ -27,11 +27,11 @@ MGPS_update <- function(
     Lambda[j, ] <- mvnfast::rmvn(1, mu_j, V_j)
   }
 
-  # 4.2 Update sigma_j
+  # 2. Update sigma_j
   rate_sigma <- b_sigma + .5 * colSums((X - Eta %*% t(Lambda))^2)
   sigma2_inv <- stats::rgamma(p, shape_sigma, rate_sigma)
 
-  # 4.3 Update Phi
+  # 3. Update Phi
   rate_phi <- (nu + t(t(Lambda^2) * tau)) / 2
   Phi <- matrix(
     stats::rgamma(p * k, shape_phi, rate_phi),
@@ -39,7 +39,7 @@ MGPS_update <- function(
     ncol = k
   )
 
-  # 4.4 Update delta and tau
+  # 4. Update delta and tau
   sum_phi_lambda2 <- colSums(Phi * Lambda^2)
   shape_d1 <- a1 + (p * k) / 2
   rate_d1 <- 1 + 0.5 * sum((tau / delta[1]) * sum_phi_lambda2)

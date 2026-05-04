@@ -41,7 +41,7 @@ bfa_dl <- function(
     Lambda = matrix(stats::rnorm(p * k), nrow = p, ncol = k),
     sigma2_inv = stats::rgamma(p, shape = a_sigma, rate = b_sigma),
     Phi = dir_gamma_matrix / rowSums(dir_gamma_matrix),
-    Psi = matrix(rexp(p * k, 1 / 2), nrow = p, ncol = k),
+    Psi = matrix(stats::rexp(p * k, 1 / 2), nrow = p, ncol = k),
     tau = stats::rgamma(p, n * a, 1 / 2),
   )
 

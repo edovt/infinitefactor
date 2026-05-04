@@ -44,9 +44,6 @@ bfa_mgps <- function(
       stop("'X' must be a numeric matrix.")
     }
   }
-  if (!is.numeric(X)) {
-    stop("'X' must be a numeric matrix.")
-  }
   if (anyNA(X) || any(!is.finite(X))) {
     stop("'X' must not contain NA, NaN, or Inf values.")
   }
@@ -196,7 +193,7 @@ bfa_mgps <- function(
       a2
     )
 
-    # 4.6 If k is not fixed, update
+    # 4.2 If k is not fixed, update
     if (adapt) {
       p_adapt <- exp(alpha0 + alpha1 * iter)
       unif <- stats::runif(1)
@@ -221,7 +218,7 @@ bfa_mgps <- function(
             )
           )
         } else {
-          # TODO: there is a possible bug here if n_redundant = k
+          # TODO: there is a bug here if n_redundant = k
           k <- max(k - n_redundant, 1)
           mgps_params$Lambda <- mgps_params$Lambda[, !redundant, drop = F]
           mgps_params$Phi <- mgps_params$Phi[, !redundant, drop = F]
@@ -232,9 +229,13 @@ bfa_mgps <- function(
       }
     }
 
-    # 4.7 Save samples
+    # 4.3 Save samples
     if (iter > iter_warmup) {
       c_iter <- iter - iter_warmup
+      samples$Sigma_X[,, c_iter] <- (mgps_params$Lambda %*%
+        t(mgps_params$Lambda) +
+        diag(1 / mgps_params$sigma2_inv)) *
+        scale_mat
       if (!adapt) {
         samples$Lambda[,, c_iter] <- mgps_params$Lambda
         samples$Eta[,, c_iter] <- Eta
@@ -244,10 +245,6 @@ bfa_mgps <- function(
         samples$tau[, c_iter] <- mgps_params$tau
       } else {
         samples$k[c_iter] <- k
-        samples$Sigma_X[,, c_iter] <- (mgps_params$Lambda %*%
-          t(mgps_params$Lambda) +
-          diag(1 / mgps_params$sigma2_inv)) *
-          scale_mat
       }
     }
 

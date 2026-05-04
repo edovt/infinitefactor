@@ -1,0 +1,180 @@
+#' Bayesian Latent Factor Regression with a Dirichlet-Laplace prior
+#'
+#' @param y Response vector
+#' @param X Predictors matrix
+#' @param iter_warmup Number of warmup iterations to run per chain
+#' @param iter_sampling Number of post-warmup iterations to run per chain
+#' @param k Number of factors
+#' @param induced (logical) return induced effects of original predictors?
+#' @param interactions (logical) include interactions between latent factors?
+#' @param prior_params Parameters of the Dirichlet-Laplace prior
+#' @param mala_eps If `interactions=TRUE`, step-size of the MALA step for
+#'     latent factors. If `NULL`, uses `k^(-1/3)` as default.
+#' @param adapt_mala_eps (logical) Should `mala_eps` be adaptive?
+#' @param window_mala If `adapt_mala_eps = TRUE`, number of iterations during
+#'     warmup that are considered for the adaptation of `mala_eps`
+#' @param verbose (logical) Show progress bar?
+#'
+#' @returns List with samples for each parameter
+#'
+#' @export
+#' @examples
+#' NULL
+blfr_dl <- function(
+  y,
+  X,
+  iter_warmup = 1000,
+  iter_sampling = 1000,
+  k = NULL,
+  induced = TRUE,
+  interactions = FALSE,
+  prior_params = list(
+    nu_y,
+    beta_var = NULL,
+    Omega_var = NULL,
+    a_sigma = NULL,
+    b_sigma = NULL,
+    a = NULL
+  ),
+  mala_eps = NULL,
+  adapt_mala_eps = TRUE,
+  window_mala = iter_warmup / 10,
+  verbose = TRUE
+) {
+  # 0. Input checks --------------------------------------------------------
+
+  # 1. Extract dimensions and hyperparameters ------------------------------
+  n <- nrow(X)
+  p <- ncol(X)
+  sd_X <- apply(X, 2, stats::sd)
+  scale_mat <- outer(sd_X, sd_X)
+  X <- scale(X)
+
+  k <- k %||% as.integer(3 * log(p))
+  mala_eps <- mala_eps %||% k^(-1 / 3)
+  nu_y <- prior_params$nu_y %||% 1
+  beta_var <- prior_params$beta_var %||% 100
+  Omega_var <- prior_params$Omega_var %||% 100
+  a_sigma <- prior_params$a_sigma %||% 1
+  b_sigma <- prior_params$b_sigma %||% 1
+  a <- prior_params$a %||% 1
+
+  # 2. Set-up storage ------------------------------------------------------
+  samples <- list(
+    sigma2_y = numeric(iter_sampling),
+    beta = matrix(NA, k, iter_sampling),
+    Lambda = array(NA, c(p, k, iter_sampling)),
+    Eta = array(NA, c(n, k, iter_sampling)),
+    sigma2_inv = matrix(NA, p, iter_sampling),
+    Phi = array(NA, c(p, k, iter_sampling)),
+    tau = matrix(NA, p, iter_sampling)
+  )
+  if (induced) {
+    samples$beta_X <- matrix(NA, p, iter_sampling)
+  }
+  if (interactions) {
+    samples$Omega <- array(NA, c(k, k, iter_sampling))
+  }
+  if (induced && interactions) {
+    samples$Omega_X <- array(NA, c(p, p, iter_sampling))
+  }
+
+  # 3. Initialize parameters -----------------------------------------------
+  dir_gamma_matrix <- matrix(stats::rgamma(p * k, a), p, k)
+  dl_params <- list(
+    Lambda = matrix(stats::rnorm(p * k), p, k),
+    sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
+    Phi = dir_gamma_matrix / rowSums(dir_gamma_matrix),
+    Psi = matrix(rexp(p * k, 1 / 2), p, k),
+    tau = stats::rgamma(p, n * a, 1 / 2)
+  )
+  Eta <- matrix(stats::rnorm(n * k), n, k)
+  reg_params <- list(
+    beta = stats::rnorm(k, sd = sqrt(beta_var)),
+    sigma2_y = 1 / stats::rgamma(1, nu_y / 2, nu_y / 2)
+  )
+  if (interactions) {
+    Omega_upper <- matrix(0, k, k)
+    Omega_upper[upper.tri(Omega_upper, diag = TRUE)] <- stats::rnorm(
+      k * (k + 1) / 2,
+      sd = sqrt(Omega_var)
+    )
+    reg_params$Omega = (Omega_upper + t(Omega_upper)) / 2
+  }
+
+  # 4. Gibbs sampler -------------------------------------------------------
+  total_iter <- iter_warmup + iter_sampling
+  p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  n_acceptances <- numeric(n)
+
+  # Constants across iterations
+  shape_sigmay <- (nu_y + n) / 2
+  shape_sigma <- a_sigma + n / 2
+
+  for (iter in 1:total_iter) {
+    # 4.1 Update parameters
+    latent_update <- latent_update_blfr(
+      X,
+      y,
+      Eta,
+      reg_params,
+      dl_params$Lambda,
+      dl_params$sigma2_inv,
+      n,
+      k,
+      mala_eps,
+      n_acceptances
+    )
+    Eta <- latent_update$Eta
+    n_acceptances <- latent_update$n_acceptances
+
+    reg_params <- update_reg_params(
+      reg_params,
+      y,
+      Eta,
+      beta_var,
+      Omega_var,
+      shape_sigmay,
+      n,
+      k
+    )
+    dl_params <- DL_update(dl_params, X, Eta, n, p, k, shape_sigma, b_sigma, a)
+
+    # 4.2 Adapt stepsize if wanted during warm-up and after window
+    if (adapt_mala_eps && (iter %% window_mala == 0) && iter <= iter_warmup) {
+      acceptance_mean <- n_acceptances / window_mala
+      mala_eps <- exp(log(mala_eps) + acceptance_mean - 0.574)
+      n_acceptances <- numeric(n)
+    }
+
+    # 4.3 Save samples
+    if (iter > iter_warmup) {
+      c_iter <- iter - iter_warmup
+      samples$sigma2_y[c_iter] <- reg_params$sigma2_y
+      samples$beta[, c_iter] <- reg_params$beta
+      samples$Lambda[,, c_iter] <- dl_params$Lambda
+      samples$Eta[,, c_iter] <- Eta
+      samples$sigma2_inv[, c_iter] <- dl_params$sigma2_inv
+      samples$Phi[,, c_iter] <- dl_params$Phi
+      samples$tau[, c_iter] <- dl_params$tau
+
+      if (interactions) {
+        samples$Omega[,, c_iter] <- reg_params$Omega
+      }
+      if (induced) {
+        L <- dl_params$Lambda
+        V <- solve(t(L) %*% diag(dl_params$sigma2_inv) %*% L + diag(k))
+        A <- V %*% t(L) %*% diag(dl_params$sigma2_inv)
+        samples$beta_X[, c_iter] <- t(A) %*% reg_params$beta
+        if (interactions) {
+          samples$Omega_X[,, c_iter] <- t(A) %*% reg_params$Omega %*% A
+        }
+      }
+    }
+
+    if (verbose) utils::setTxtProgressBar(p_bar, iter)
+  }
+
+  close(p_bar)
+  samples
+}

@@ -1,4 +1,4 @@
-#' Bayesian Latent Factor Regression with an MGPS prior
+#' Bayesian Latent Factor Regression with a MGPS prior
 #'
 #' @param y Response vector
 #' @param X Predictors matrix
@@ -9,7 +9,10 @@
 #' @param interactions (logical) include interactions between latent factors?
 #' @param prior_params Parameters of the MGPS prior
 #' @param mala_eps If `interactions=TRUE`, step-size of the MALA step for
-#'     latent factors
+#'     latent factors. If `NULL`, uses `k^(-1/3)` as default.
+#' @param adapt_mala_eps (logical) should `mala_eps` be adaptive?
+#' @param window_mala If `adapt_mala_eps = TRUE`, number of iterations during
+#'     warmup that are considered for the adaptation of `mala_eps`
 #' @param verbose (logical) Show progress bar?
 #'
 #' @returns List with samples for each parameter
@@ -35,7 +38,9 @@ blfr_mgps <- function(
     a1 = NULL,
     a2 = NULL
   ),
-  mala_eps = 10,
+  mala_eps = NULL,
+  adapt_mala_eps = TRUE,
+  window_mala = iter_warmup / 10,
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------
@@ -48,6 +53,7 @@ blfr_mgps <- function(
   X <- scale(X)
 
   k <- k %||% as.integer(3 * log(p))
+  mala_eps <- mala_eps %||% k^(-1 / 3)
   nu_y <- prior_params$nu_y %||% 1
   beta_var <- prior_params$beta_var %||% 100
   Omega_var <- prior_params$Omega_var %||% 100
@@ -60,43 +66,43 @@ blfr_mgps <- function(
   # 2. Set-up storage of samples -------------------------------------------
   samples <- list(
     sigma2_y = numeric(iter_sampling),
-    beta = matrix(NA, nrow = k, ncol = iter_sampling),
-    Lambda = array(NA, dim = c(p, k, iter_sampling)),
-    Eta = array(NA, dim = c(n, k, iter_sampling)),
-    sigma2_inv = matrix(NA, nrow = p, ncol = iter_sampling),
-    Phi = array(NA, dim = c(p, k, iter_sampling)),
-    delta = matrix(NA, nrow = k, ncol = iter_sampling),
-    tau = matrix(NA, nrow = k, ncol = iter_sampling)
+    beta = matrix(NA, k, iter_sampling),
+    Lambda = array(NA, c(p, k, iter_sampling)),
+    Eta = array(NA, c(n, k, iter_sampling)),
+    sigma2_inv = matrix(NA, p, iter_sampling),
+    Phi = array(NA, c(p, k, iter_sampling)),
+    delta = matrix(NA, k, iter_sampling),
+    tau = matrix(NA, k, iter_sampling)
   )
   if (induced) {
-    samples$beta_X = matrix(NA, nrow = p, ncol = iter_sampling)
+    samples$beta_X = matrix(NA, p, iter_sampling)
   }
   if (interactions) {
-    samples$Omega = array(NA, dim = c(k, k, iter_sampling))
+    samples$Omega = array(NA, c(k, k, iter_sampling))
   }
   if (induced && interactions) {
-    samples$Omega_X = array(NA, dim = c(p, p, iter_sampling))
+    samples$Omega_X = array(NA, c(p, p, iter_sampling))
   }
 
   # 3. Initialize parameters -----------------------------------------------
   delta_init <- c(stats::rgamma(1, a1, 1), stats::rgamma(k - 1, a2, 1))
   mgps_params <- list(
-    Lambda = matrix(stats::rnorm(p * k), nrow = p, ncol = k),
-    sigma2_inv = stats::rgamma(p, shape = a_sigma, rate = b_sigma),
-    Phi = matrix(stats::rgamma(p * k, nu / 2, nu / 2), nrow = p, ncol = k),
+    Lambda = matrix(stats::rnorm(p * k), p, k),
+    sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
+    Phi = matrix(stats::rgamma(p * k, nu / 2, nu / 2), p, k),
     delta = delta_init,
     tau = cumprod(delta_init)
   )
-  Eta <- matrix(stats::rnorm(n * k), nrow = n, ncol = k)
+  Eta <- matrix(stats::rnorm(n * k), n, k)
   reg_params <- list(
     beta = stats::rnorm(k, sd = sqrt(beta_var)),
     sigma2_y = 1 / stats::rgamma(1, nu_y / 2, nu_y / 2)
   )
   if (interactions) {
-    Omega_upper <- matrix(
-      stats::rnorm(k * (k + 1) / 2, sd = sqrt(Omega_var)),
-      nrow = k,
-      ncol = k
+    Omega_upper <- matrix(0, k, k)
+    Omega_upper[upper.tri(Omega_upper, diag = TRUE)] <- stats::rnorm(
+      k * (k + 1) / 2,
+      sd = sqrt(Omega_var)
     )
     reg_params$Omega = (Omega_upper + t(Omega_upper)) / 2
   }
@@ -104,14 +110,16 @@ blfr_mgps <- function(
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
   p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  n_acceptances <- numeric(n)
 
-  # constants across iterations
+  # Constants across iterations
   shape_sigmay <- (nu_y + n) / 2
   shape_sigma <- a_sigma + n / 2
   shape_phi <- (nu + 1) / 2
 
   for (iter in 1:total_iter) {
-    Eta <- latent_update_blfr(
+    # 4.1 Update parameters
+    latent_update <- latent_update_blfr(
       X,
       y,
       Eta,
@@ -120,15 +128,19 @@ blfr_mgps <- function(
       mgps_params$sigma2_inv,
       n,
       k,
-      mala_eps
+      mala_eps,
+      n_acceptances
     )
+    Eta <- latent_update$Eta
+    n_acceptances <- latent_update$n_acceptances
 
     reg_params <- update_reg_params(
       reg_params,
       y,
       Eta,
-      shape_sigmay,
       beta_var,
+      Omega_var,
+      shape_sigmay,
       n,
       k
     )
@@ -148,9 +160,18 @@ blfr_mgps <- function(
       a2
     )
 
-    # 4.6 Save samples
+    # 4.2 Adapt stepsize if wanted during warm-up and after window
+    if (adapt_mala_eps && (iter %% window_mala == 0) && iter <= iter_warmup) {
+      acceptance_mean <- n_acceptances / window_mala
+      mala_eps <- exp(log(mala_eps) + acceptance_mean - 0.574)
+      n_acceptances <- numeric(n)
+    }
+
+    # 4.3 Save samples
     if (iter > iter_warmup) {
       c_iter <- iter - iter_warmup
+      samples$sigma2_y[c_iter] <- reg_params$sigma2_y
+      samples$beta[, c_iter] <- reg_params$beta
       samples$Lambda[,, c_iter] <- mgps_params$Lambda
       samples$Eta[,, c_iter] <- Eta
       samples$sigma2_inv[, c_iter] <- mgps_params$sigma2_inv
@@ -166,9 +187,9 @@ blfr_mgps <- function(
         V <- solve(t(L) %*% diag(mgps_params$sigma2_inv) %*% L + diag(k))
         A <- V %*% t(L) %*% diag(mgps_params$sigma2_inv)
         samples$beta_X[, c_iter] <- t(A) %*% reg_params$beta
-      }
-      if (induced && interactions) {
-        samples$Omega_X[,, c_iter] <- t(A) %*% reg_params$Omega %*% A
+        if (interactions) {
+          samples$Omega_X[,, c_iter] <- t(A) %*% reg_params$Omega %*% A
+        }
       }
     }
 

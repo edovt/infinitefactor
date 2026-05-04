@@ -44,7 +44,7 @@ update_reg_params <- function(
   resid_beta <- y - quad_term
   V_beta <- solve(crossprod(Eta) / sigma2_y + diag(1 / beta_var, nrow = k))
   mu_beta <- V_beta %*% (crossprod(Eta, resid_beta) / sigma2_y)
-  beta <- mvtnorm::rmvnorm(1, mu_beta, V_beta)[1, ]
+  beta <- mvnfast::rmvn(1, mu_beta, V_beta)[1, ]
 
   # 2. Update Omega
   if (inter) {
@@ -54,7 +54,7 @@ update_reg_params <- function(
     P_Omega <- crossprod(Eta_star) / sigma2_y + diag(1 / Omega_var, nrow = m)
     V_Omega <- solve(P_Omega)
     mu_Omega <- V_Omega %*% (crossprod(Eta_star, resid_Omega) / sigma2_y)
-    omega_vec <- mvtnorm::rmvnorm(1, mu_Omega, V_Omega)[1, ]
+    omega_vec <- mvnfast::rmvn(1, mu_Omega, V_Omega)[1, ]
     Omega <- vech_to_sym(omega_vec, k)
   }
 
