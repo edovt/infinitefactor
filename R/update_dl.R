@@ -41,10 +41,15 @@ DL_update <- function(
   }
 
   # 4.4 Update Psi
+  ## For the inverse Gaussian, order of parameters change
   for (j in 1:p) {
     for (h in 1:k) {
-      Psi[j, h] <- 1 /
-        GIGrvg::rgig(1, -1 / 2, chi = Delta[j, h] / abs(Lambda[j, h]), psi = 1)
+      Psi[j, h] <- GIGrvg::rgig(
+        1,
+        1 / 2,
+        chi = (Lambda[j, h] / Delta[j, h])^2,
+        psi = 1
+      )
     }
   }
 

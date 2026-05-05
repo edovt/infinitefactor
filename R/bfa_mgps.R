@@ -220,8 +220,8 @@ bfa_mgps <- function(
             )
           )
         } else {
-          k <- max(k - n_redundant, 1)
           if (n_redundant == k) {
+            k <- 1
             Eta <- matrix(stats::rnorm(n), ncol = 1)
             mgps_params$Phi <- matrix(
               stats::rgamma(p, nu / 2, nu / 2),
@@ -234,6 +234,7 @@ bfa_mgps <- function(
               sd = 1 / sqrt(mgps_params$Phi[, k] * mgps_params$tau[k])
             ))
           } else {
+            k <- k - n_redundant
             mgps_params$Lambda <- mgps_params$Lambda[, !redundant, drop = F]
             mgps_params$Phi <- mgps_params$Phi[, !redundant, drop = F]
             Eta <- Eta[, !redundant, drop = F]

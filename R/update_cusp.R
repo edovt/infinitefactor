@@ -11,7 +11,9 @@ CUSP_update <- function(
   shape_theta,
   a_theta,
   b_theta,
-  theta_inf
+  theta_inf,
+  norm_covariance,
+  t_covariance
 ) {
   Lambda <- cusp_params$Lambda
   sigma2_inv <- cusp_params$sigma2_inv
@@ -33,8 +35,6 @@ CUSP_update <- function(
 
   # 3. Update z
   z <- integer(k)
-  norm_covariance <- diag(theta_inf, p)
-  t_covariance <- diag(b_theta / a_theta, p)
   log_norm <- mvnfast::dmvn(
     t(Lambda),
     rep(0, p),

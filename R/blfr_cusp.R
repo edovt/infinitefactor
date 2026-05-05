@@ -41,7 +41,7 @@ blfr_cusp <- function(
   ),
   mala_eps = NULL,
   adapt_mala_eps = TRUE,
-  window_mala = iter_warmup / 10,
+  window_mala = floor(iter_warmup / 10),
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------

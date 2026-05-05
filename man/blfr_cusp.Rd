@@ -16,7 +16,7 @@ blfr_cusp(
     b_sigma = NULL, alpha = NULL, a_theta = NULL, b_theta = NULL, theta_inf = NULL),
   mala_eps = NULL,
   adapt_mala_eps = TRUE,
-  window_mala = iter_warmup/10,
+  window_mala = floor(iter_warmup/10),
   verbose = TRUE
 )
 }

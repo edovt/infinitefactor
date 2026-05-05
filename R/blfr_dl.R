@@ -38,7 +38,7 @@ blfr_dl <- function(
   ),
   mala_eps = NULL,
   adapt_mala_eps = TRUE,
-  window_mala = iter_warmup / 10,
+  window_mala = floor(iter_warmup / 10),
   verbose = TRUE
 ) {
   # 0. Input checks --------------------------------------------------------
@@ -191,7 +191,7 @@ blfr_dl <- function(
     Lambda = matrix(stats::rnorm(p * k), p, k),
     sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
     Delta = matrix(stats::rgamma(p * k, a, 1 / 2), p, k),
-    Psi = matrix(stats::rexp(p * k, 1 / 2))
+    Psi = matrix(stats::rexp(p * k, 1 / 2), p, k)
   )
   Eta <- matrix(stats::rnorm(n * k), n, k)
   reg_params <- list(

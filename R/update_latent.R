@@ -98,7 +98,7 @@ latent_update_blfr <- function(
     V_eta <- solve(tcrossprod(beta) / sigma2_y + LaTSinv %*% Lambda + diag(k))
     mu_eta <- t(V_eta %*% (tcrossprod(beta, y / sigma2_y) + LaTSinv %*% t(X))) # n × k
     U_eta <- chol(V_eta)
-    Eta_new <- mu_eta + matrix(rnorm(n * k), n, k) %*% U_eta
+    Eta_new <- mu_eta + matrix(stats::rnorm(n * k), n, k) %*% U_eta
   }
 
   list(Eta = Eta_new, n_acceptances = n_acceptances)

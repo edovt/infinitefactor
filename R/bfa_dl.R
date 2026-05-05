@@ -7,7 +7,7 @@
 #' @param prior_params Parameters of the DL prior.
 #' @param verbose (logical) Show progress bar?
 #'
-#' @returns
+#' @returns List with samples for each parameter
 #'
 #' @export
 #' @examples
@@ -25,6 +25,66 @@ bfa_dl <- function(
   verbose = TRUE
 ) {
   # 0. Input checks ---------------------------------------------------------
+  if (!is.matrix(X)) {
+    X <- as.matrix(X)
+    if (!is.numeric(X)) {
+      stop("'X' must be a numeric matrix.")
+    }
+  }
+  if (anyNA(X) || any(!is.finite(X))) {
+    stop("'X' must not contain NA, NaN, or Inf values.")
+  }
+  if (nrow(X) <= 1 || ncol(X) < 2) {
+    stop("'X' must have at least 2 rows and 2 columns.")
+  }
+  if (any(apply(X, 2, stats::sd) == 0)) {
+    stop("'X' has constant columns; remove or impute them before fitting.")
+  }
+
+  if (!is.null(k)) {
+    if (
+      !is.numeric(k) ||
+        length(k) != 1 ||
+        k != as.integer(k) ||
+        k < 1
+    ) {
+      stop("'k' must be a positive integer.")
+    }
+    if (k >= min(nrow(X), ncol(X))) {
+      stop("'k' must be less than min(n, p).")
+    }
+  }
+
+  if (
+    !is.numeric(iter_warmup) ||
+      length(iter_warmup) != 1 ||
+      iter_warmup != as.integer(iter_warmup) ||
+      iter_warmup < 1
+  ) {
+    stop("'iter_warmup' must be a positive integer.")
+  }
+  if (
+    !is.numeric(iter_sampling) ||
+      length(iter_sampling) != 1 ||
+      iter_sampling != as.integer(iter_sampling) ||
+      iter_sampling < 1
+  ) {
+    stop("'iter_sampling' must be a positive integer.")
+  }
+
+  if (!is.logical(verbose) || length(verbose) != 1) {
+    stop("'verbose' must be a single logical value.")
+  }
+
+  a_sigma_check <- prior_params$a_sigma %||% 1
+  b_sigma_check <- prior_params$b_sigma %||% 1
+  a_check <- prior_params$a %||% 1
+  if (a_sigma_check <= 0 || b_sigma_check <= 0) {
+    stop("'a_sigma' and 'b_sigma' must be positive.")
+  }
+  if (a_check <= 0) {
+    stop("'a' must be positive.")
+  }
 
   # 1. Extract dimensions and hyperparameters -------------------------------
   n <- nrow(X)
@@ -36,7 +96,7 @@ bfa_dl <- function(
   k <- k %||% as.integer(3 * log(p))
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
-  a <- prior_params$a %||% 1 / k
+  a <- prior_params$a %||% (1 / k)
 
   # 2. Set-up storage of samples --------------------------------------------
   samples <- list(
@@ -54,7 +114,7 @@ bfa_dl <- function(
     Lambda = matrix(stats::rnorm(p * k), p, k),
     sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
     Delta = matrix(stats::rgamma(p * k, a, 1 / 2), p, k),
-    Psi = matrix(stats::rexp(p * k, 1 / 2))
+    Psi = matrix(stats::rexp(p * k, 1 / 2), p, k)
   )
 
   # 4. Gibbs sampler --------------------------------------------------------

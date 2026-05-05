@@ -160,9 +160,14 @@ bfa_cusp <- function(
 
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
+  p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+
+  # Constants across iterations
   shape_sigma <- a_sigma + n / 2
   shape_theta <- a_theta + p / 2
-  p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  norm_covariance <- diag(theta_inf, p)
+  t_covariance <- diag(b_theta / a_theta, p)
+
   for (iter in 1:total_iter) {
     Eta <- latent_update_bfa(
       X,
@@ -184,7 +189,9 @@ bfa_cusp <- function(
       shape_theta,
       a_theta,
       b_theta,
-      theta_inf
+      theta_inf,
+      norm_covariance,
+      t_covariance
     )
 
     if (adapt) {
