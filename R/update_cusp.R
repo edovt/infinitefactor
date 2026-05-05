@@ -24,7 +24,7 @@ CUSP_update <- function(
   Eta_cross <- crossprod(Eta)
   EtaTX <- crossprod(Eta, X)
   for (j in 1:p) {
-    V_j <- solve(diag(theta, nrow = k) + sigma2_inv[j] * Eta_cross)
+    V_j <- solve(diag(1 / theta, nrow = k) + sigma2_inv[j] * Eta_cross)
     mu_j <- sigma2_inv[j] * (V_j %*% EtaTX[, j])
     Lambda[j, ] <- mvnfast::rmvn(1, mu_j, V_j)
   }

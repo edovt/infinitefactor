@@ -154,7 +154,7 @@ bfa_cusp <- function(
   cusp_params <- list(
     Lambda = matrix(stats::rnorm(p * k), p, k),
     sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
-    theta = stats::rgamma(k, a_theta, b_theta),
+    theta = 1 / stats::rgamma(k, a_theta, b_theta),
     omega = stick_break(c(stats::rbeta(k - 1, 1, alpha), 1))
   )
 
