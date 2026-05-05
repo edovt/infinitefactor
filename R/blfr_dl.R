@@ -164,7 +164,7 @@ blfr_dl <- function(
   Omega_var <- prior_params$Omega_var %||% 100
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
-  a <- prior_params$a %||% 1
+  a <- prior_params$a %||% 1 / k
 
   # 2. Set-up storage ------------------------------------------------------
   samples <- list(
@@ -173,8 +173,8 @@ blfr_dl <- function(
     Lambda = array(NA, c(p, k, iter_sampling)),
     Eta = array(NA, c(n, k, iter_sampling)),
     sigma2_inv = matrix(NA, p, iter_sampling),
-    Phi = array(NA, c(p, k, iter_sampling)),
-    tau = matrix(NA, p, iter_sampling)
+    Delta = array(NA, dim = c(p, k, iter_sampling)),
+    Psi = array(NA, dim = c(p, k, iter_sampling))
   )
   if (induced) {
     samples$beta_X <- matrix(NA, p, iter_sampling)
@@ -187,13 +187,11 @@ blfr_dl <- function(
   }
 
   # 3. Initialize parameters -----------------------------------------------
-  dir_gamma_matrix <- matrix(stats::rgamma(p * k, a), p, k)
   dl_params <- list(
     Lambda = matrix(stats::rnorm(p * k), p, k),
     sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),
-    Phi = dir_gamma_matrix / rowSums(dir_gamma_matrix),
-    Psi = matrix(rexp(p * k, 1 / 2), p, k),
-    tau = stats::rgamma(p, n * a, 1 / 2)
+    Delta = matrix(stats::rgamma(p * k, a, 1 / 2), p, k),
+    Psi = matrix(stats::rexp(p * k, 1 / 2))
   )
   Eta <- matrix(stats::rnorm(n * k), n, k)
   reg_params <- list(
@@ -262,8 +260,8 @@ blfr_dl <- function(
       samples$Lambda[,, c_iter] <- dl_params$Lambda
       samples$Eta[,, c_iter] <- Eta
       samples$sigma2_inv[, c_iter] <- dl_params$sigma2_inv
-      samples$Phi[,, c_iter] <- dl_params$Phi
-      samples$tau[, c_iter] <- dl_params$tau
+      samples$Delta[,, c_iter] <- dl_params$Delta
+      samples$Psi[,, c_iter] <- dl_params$Psi
 
       if (interactions) {
         samples$Omega[,, c_iter] <- reg_params$Omega

@@ -166,9 +166,11 @@ bfa_mgps <- function(
 
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
-  shape_sigma <- a_sigma + n / 2 # constant across iterations
-  shape_phi <- (nu + 1) / 2 # constant across iterations
   p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+
+  # Constants across iterations
+  shape_sigma <- a_sigma + n / 2
+  shape_phi <- (nu + 1) / 2
 
   for (iter in 1:total_iter) {
     Eta <- latent_update_bfa(
@@ -218,13 +220,26 @@ bfa_mgps <- function(
             )
           )
         } else {
-          # TODO: there is a bug here if n_redundant = k
           k <- max(k - n_redundant, 1)
-          mgps_params$Lambda <- mgps_params$Lambda[, !redundant, drop = F]
-          mgps_params$Phi <- mgps_params$Phi[, !redundant, drop = F]
-          Eta <- Eta[, !redundant, drop = F]
-          mgps_params$delta <- mgps_params$delta[!redundant]
-          mgps_params$tau <- cumprod(mgps_params$delta)
+          if (n_redundant == k) {
+            Eta <- matrix(stats::rnorm(n), ncol = 1)
+            mgps_params$Phi <- matrix(
+              stats::rgamma(p, nu / 2, nu / 2),
+              ncol = 1
+            )
+            mgps_params$delta <- stats::rgamma(1, a2, 1)
+            mgps_params$tau <- cumprod(mgps_params$delta)
+            mgps_params$Lambda <- matrix(stats::rnorm(
+              p,
+              sd = 1 / sqrt(mgps_params$Phi[, k] * mgps_params$tau[k])
+            ))
+          } else {
+            mgps_params$Lambda <- mgps_params$Lambda[, !redundant, drop = F]
+            mgps_params$Phi <- mgps_params$Phi[, !redundant, drop = F]
+            Eta <- Eta[, !redundant, drop = F]
+            mgps_params$delta <- mgps_params$delta[!redundant]
+            mgps_params$tau <- cumprod(mgps_params$delta)
+          }
         }
       }
     }
