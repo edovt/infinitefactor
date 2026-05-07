@@ -188,7 +188,8 @@ blfr_cusp <- function(
     Lambda = array(NA, c(p, k, iter_sampling)),
     Eta = array(NA, c(n, k, iter_sampling)),
     sigma2_inv = matrix(NA, p, iter_sampling),
-    theta = matrix(NA, k, iter_sampling)
+    theta = matrix(NA, k, iter_sampling),
+    Sigma_X = array(NA, dim = c(p, p, iter_sampling))
   )
   if (induced) {
     samples$beta_X <- matrix(NA, p, iter_sampling)
@@ -198,6 +199,7 @@ blfr_cusp <- function(
   }
   if (induced && interactions) {
     samples$Omega_X <- array(NA, c(p, p, iter_sampling))
+    samples$intercept_X <- numeric(iter_sampling)
   }
 
   # 3. Initialize parameters -----------------------------------------------
@@ -232,6 +234,7 @@ blfr_cusp <- function(
   shape_theta <- a_theta + p / 2
   norm_covariance <- diag(theta_inf, p)
   t_covariance <- diag(b_theta / a_theta, p)
+  sd_X_inv <- diag(1 / sd_X)
 
   for (iter in 1:total_iter) {
     # 4.1 Update parameters
@@ -289,6 +292,10 @@ blfr_cusp <- function(
     # 4.3 Save samples
     if (iter > iter_warmup) {
       c_iter <- iter - iter_warmup
+      samples$Sigma_X[,, c_iter] <- (cusp_params$Lambda %*%
+        t(cusp_params$Lambda) +
+        diag(1 / cusp_params$sigma2_inv)) *
+        scale_mat
       samples$sigma2_y[c_iter] <- reg_params$sigma2_y
       samples$beta[, c_iter] <- reg_params$beta
       samples$Lambda[,, c_iter] <- cusp_params$Lambda
@@ -303,10 +310,14 @@ blfr_cusp <- function(
         L <- cusp_params$Lambda
         V <- solve(t(L) %*% diag(cusp_params$sigma2_inv) %*% L + diag(k))
         A <- V %*% t(L) %*% diag(cusp_params$sigma2_inv)
-        samples$beta_X[, c_iter] <- t(A) %*% reg_params$beta
-
+        samples$beta_X[, c_iter] <- sd_X_inv %*% t(A) %*% reg_params$beta
         if (interactions) {
-          samples$Omega_X[,, c_iter] <- t(A) %*% reg_params$Omega %*% A
+          samples$Omega_X[,, c_iter] <- sd_X_inv %*%
+            t(A) %*%
+            reg_params$Omega %*%
+            A %*%
+            sd_X_inv
+          samples$intercept_X[c_iter] <- sum(diag(reg_params$Omega %*% V))
         }
       }
     }

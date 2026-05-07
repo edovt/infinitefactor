@@ -179,7 +179,8 @@ blfr_mgps <- function(
     sigma2_inv = matrix(NA, p, iter_sampling),
     Phi = array(NA, c(p, k, iter_sampling)),
     delta = matrix(NA, k, iter_sampling),
-    tau = matrix(NA, k, iter_sampling)
+    tau = matrix(NA, k, iter_sampling),
+    Sigma_X = array(NA, dim = c(p, p, iter_sampling))
   )
   if (induced) {
     samples$beta_X <- matrix(NA, p, iter_sampling)
@@ -189,6 +190,7 @@ blfr_mgps <- function(
   }
   if (induced && interactions) {
     samples$Omega_X <- array(NA, c(p, p, iter_sampling))
+    samples$intercept_X <- numeric(iter_sampling)
   }
 
   # 3. Initialize parameters -----------------------------------------------
@@ -223,6 +225,7 @@ blfr_mgps <- function(
   shape_sigmay <- (nu_y + n) / 2
   shape_sigma <- a_sigma + n / 2
   shape_phi <- (nu + 1) / 2
+  sd_X_inv <- diag(1 / sd_X)
 
   for (iter in 1:total_iter) {
     # 4.1 Update parameters
@@ -277,6 +280,10 @@ blfr_mgps <- function(
     # 4.3 Save samples
     if (iter > iter_warmup) {
       c_iter <- iter - iter_warmup
+      samples$Sigma_X[,, c_iter] <- (mgps_params$Lambda %*%
+        t(mgps_params$Lambda) +
+        diag(1 / mgps_params$sigma2_inv)) *
+        scale_mat
       samples$sigma2_y[c_iter] <- reg_params$sigma2_y
       samples$beta[, c_iter] <- reg_params$beta
       samples$Lambda[,, c_iter] <- mgps_params$Lambda
@@ -293,9 +300,14 @@ blfr_mgps <- function(
         L <- mgps_params$Lambda
         V <- solve(t(L) %*% diag(mgps_params$sigma2_inv) %*% L + diag(k))
         A <- V %*% t(L) %*% diag(mgps_params$sigma2_inv)
-        samples$beta_X[, c_iter] <- t(A) %*% reg_params$beta
+        samples$beta_X[, c_iter] <- sd_X_inv %*% t(A) %*% reg_params$beta
         if (interactions) {
-          samples$Omega_X[,, c_iter] <- t(A) %*% reg_params$Omega %*% A
+          samples$Omega_X[,, c_iter] <- sd_X_inv %*%
+            t(A) %*%
+            reg_params$Omega %*%
+            A %*%
+            sd_X_inv
+          samples$intercept_X[c_iter] <- sum(diag(reg_params$Omega %*% V))
         }
       }
     }
