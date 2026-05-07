@@ -96,7 +96,7 @@ bfa_dl <- function(
   k <- k %||% as.integer(3 * log(p))
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
-  a <- prior_params$a %||% (1 / k)
+  a <- prior_params$a %||% (1 / 2)
 
   # 2. Set-up storage of samples --------------------------------------------
   samples <- list(
@@ -110,6 +110,7 @@ bfa_dl <- function(
 
   # 3. Initialize parameters ------------------------------------------------
   # Eta not needed since it's the first to get updated
+  # Delta values don't matter since they are the first to get updated in DL
   dl_params <- list(
     Lambda = matrix(stats::rnorm(p * k), p, k),
     sigma2_inv = stats::rgamma(p, a_sigma, b_sigma),

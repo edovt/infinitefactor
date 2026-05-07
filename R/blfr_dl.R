@@ -164,7 +164,7 @@ blfr_dl <- function(
   Omega_var <- prior_params$Omega_var %||% 100
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
-  a <- prior_params$a %||% 1 / k
+  a <- prior_params$a %||% (1 / 2)
 
   # 2. Set-up storage ------------------------------------------------------
   samples <- list(
