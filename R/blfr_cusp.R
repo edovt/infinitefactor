@@ -230,6 +230,8 @@ blfr_cusp <- function(
   shape_sigmay <- (nu_y + n) / 2
   shape_sigma <- a_sigma + n / 2
   shape_theta <- a_theta + p / 2
+  norm_covariance <- diag(theta_inf, p)
+  t_covariance <- diag(b_theta / a_theta, p)
 
   for (iter in 1:total_iter) {
     # 4.1 Update parameters
@@ -272,7 +274,9 @@ blfr_cusp <- function(
       shape_theta,
       a_theta,
       b_theta,
-      theta_inf
+      theta_inf,
+      norm_covariance,
+      t_covariance
     )
 
     # 4.2 Adapt stepsize if wanted during warmup and after window
