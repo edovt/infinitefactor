@@ -20,6 +20,10 @@ Imports:
     ggplot2,
     GIGrvg,
     mvnfast,
+    Rcpp,
     reshape2,
     stats,
     utils
+LinkingTo: 
+    Rcpp,
+    RcppArmadillo
