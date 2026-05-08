@@ -19,7 +19,33 @@
 #'
 #' @export
 #' @examples
-#' NULL
+#' set.seed(219)
+#'
+#' # 1. Example without interactions
+#' sim <- sim_data_blfr(n = 200, n_test = 100, p = 20, k = 3)
+#' fit_dl <- blfr_dl(sim$y, sim$X)
+#'
+#' # 1.1 Induced effect summaries
+#' Sigma_X_plots <- plot_Sigma_X(fit_dl, real = sim$Sigma_X_true)
+#' Sigma_X_plots$scatter
+#' main_effects_plots <- plot_effects_X(
+#'     fit_dl,
+#'     real_beta = sim$beta_X
+#' )
+#' main_effects_plots$main
+#' main_effects_plots$scatter
+#'
+#' # 1.2 Match Align
+#' aligned <- match_align(fit_dl)
+#' plot_match_align(aligned, "Lambda", "mean")
+#'
+#' # 1.3 Estimates on test set
+#' preds <- predict_blfr(fit_dl, sim$X_test)
+#' mean((preds - sim$y_test)^2)
+#' plot(1:length(preds), preds - sim$y_test)
+#'
+#' # 2. For example with interactions, see help(blfr_mgps)
+#'
 blfr_dl <- function(
   y,
   X,

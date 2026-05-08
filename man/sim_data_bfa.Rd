@@ -2,7 +2,7 @@
 % Please edit documentation in R/sim_data.R
 \name{sim_data_bfa}
 \alias{sim_data_bfa}
-\title{Generate data for Factor Analysis examples}
+\title{Generate Data for Factor Analysis Examples}
 \usage{
 sim_data_bfa(n, p, k)
 }

@@ -2,7 +2,7 @@
 % Please edit documentation in R/results.R
 \name{plot_Sigma_X}
 \alias{plot_Sigma_X}
-\title{Summary plots of the posterior covariance of X}
+\title{Summary Plots of Posterior Covariance}
 \usage{
 plot_Sigma_X(fit, real = NULL)
 }
@@ -21,7 +21,7 @@ mean posterior covariance of X. Otherwise, three plots:
 }
 }
 \description{
-Summary plots of the posterior covariance of X
+Summary Plots of Posterior Covariance
 }
 \examples{
 set.seed(219)

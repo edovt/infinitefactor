@@ -19,7 +19,48 @@
 #'
 #' @export
 #' @examples
-#' NULL
+#' set.seed(219)
+#'
+#' # 1. Example without interactions
+#' sim <- sim_data_blfr(n = 200, n_test = 100, p = 20, k = 3)
+#' fit_mgps <- blfr_mgps(sim$y, sim$X)
+#'
+#' # 1.1 Induced effect summaries
+#' Sigma_X_plots <- plot_Sigma_X(fit_mgps, real = sim$Sigma_X_true)
+#' Sigma_X_plots$scatter
+#' main_effects_plots <- plot_effects_X(
+#'     fit_mgps,
+#'     real_beta = sim$beta_X
+#' )
+#' main_effects_plots$main
+#' main_effects_plots$scatter
+#'
+#' # 1.2 Match Align
+#' aligned <- match_align(fit_mgps)
+#' plot_match_align(aligned, "Lambda", "mean")
+#'
+#' # 1.3 Estimates on test set
+#' preds <- predict_blfr(fit_mgps, sim$X_test)
+#' mean((preds - sim$y_test)^2)
+#' plot(1:length(preds), preds - sim$y_test)
+#'
+#' # 2. Example with interactions
+#' #sim <- sim_data_blfr(200, 100, 20, k = 3, interactions = TRUE)
+#' #fit_mgps <- blfr_mgps(sim$y, sim$X, interactions = TRUE)
+#'
+#' # 2.1 Induced effect summaries
+#' # Sigma_X_plots <- plot_Sigma_X(fit_mgps, real = sim$Sigma_X_true)
+#' # Sigma_X_plots$scatter
+#' # main_effects_plots <- plot_effects_X(
+#' #   fit_mgps, real_beta = sim$beta_X, real_intercept = sim$intercept_X
+#' # )
+#' # main_effects_plots$main
+#' # interaction_effects_plots <- plot_Omega_X(fit_mgps, real = sim$Omega_X)
+#'
+#' # 2.2 Match Align
+#' # aligned <- match_align(fit_mgps)
+#' # plot_match_align(aligned, "Lambda", "mean")
+#'
 blfr_mgps <- function(
   y,
   X,
