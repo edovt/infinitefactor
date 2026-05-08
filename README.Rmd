@@ -16,9 +16,10 @@ knitr::opts_chunk$set(
 # infinitefactor
 
 <!-- badges: start -->
+
 <!-- badges: end -->
 
-The goal of `infinitefactor` is to provide samplers and post-processing functions for semi-parametric Bayesian infinite factor models and Bayesian Latent Factor Regression with Interactions from F. Ferrari & D. Dunson (2021) <doi:10.1080/01621459.2020.1745813>. Different priors for the factor loadings are implemented, such as MGPS from A. Bhattacharya & D. Dunson (2011) <doi:10.1093/biomet/asr013>, Row-wise Dirichlet-Laplace from A. Bhattacharya et al. (2015) <doi:10.1080/01621459.2014.960967>, CUSP from S. Legramanti et al. (2020) <doi:10.1093/biomet/asaa008>, SIS from L. Schiavon (2022) <doi:10.1093/biomet/asab056> and CMR from E. Bersson et al. (2025) <doi:10.48550/ARXIV.2504.08220>. Post-processing functions include the MatchAlign algorithm from E. Poworoznek et al. (2025) <doi:10.1214/25-BA1544>, which returns identifiable factor loadings through succesive application of orthogonalization procedures and resolution of column label and sign switching.
+The goal of `infinitefactor` is to provide samplers and post-processing functions for semi-parametric Bayesian infinite factor models and Bayesian Latent Factor Regression with Interactions from F. Ferrari & D. Dunson (2021) [doi:10.1080/01621459.2020.1745813](doi:10.1080/01621459.2020.1745813). Different priors for the factor loadings are implemented, such as MGPS from A. Bhattacharya & D. Dunson (2011) [doi:10.1093/biomet/asr013](doi:10.1093/biomet/asr013), Row-wise Dirichlet-Laplace from A. Bhattacharya et al. (2015) [doi:10.1080/01621459.2014.960967](doi:10.1080/01621459.2014.960967), CUSP from S. Legramanti et al. (2020) [doi:10.1093/biomet/asaa008](doi:10.1093/biomet/asaa008), SIS from L. Schiavon (2022) [doi:10.1093/biomet/asab056](doi:10.1093/biomet/asab056) and CMR from E. Bersson et al. (2025) [doi:10.48550/ARXIV.2504.08220](doi:10.48550/ARXIV.2504.08220). Post-processing functions include the MatchAlign algorithm from E. Poworoznek et al. (2025) [doi:10.1214/25-BA1544](doi:10.1214/25-BA1544), which returns identifiable factor loadings through succesive application of orthogonalization procedures and resolution of column label and sign switching.
 
 ## Installation
 
