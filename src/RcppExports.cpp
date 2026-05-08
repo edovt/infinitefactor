@@ -11,6 +11,42 @@ Rcpp::Rostream<true>&  Rcpp::Rcout = Rcpp::Rcpp_cout_get();
 Rcpp::Rostream<false>& Rcpp::Rcerr = Rcpp::Rcpp_cerr_get();
 #endif
 
+// msf
+Rcpp::NumericMatrix msf(arma::mat lambda, arma::mat pivot);
+RcppExport SEXP _infinitefactor_msf(SEXP lambdaSEXP, SEXP pivotSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type pivot(pivotSEXP);
+    rcpp_result_gen = Rcpp::wrap(msf(lambda, pivot));
+    return rcpp_result_gen;
+END_RCPP
+}
+// msfOUT
+Rcpp::NumericVector msfOUT(arma::mat lambda, arma::mat pivot);
+RcppExport SEXP _infinitefactor_msfOUT(SEXP lambdaSEXP, SEXP pivotSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type lambda(lambdaSEXP);
+    Rcpp::traits::input_parameter< arma::mat >::type pivot(pivotSEXP);
+    rcpp_result_gen = Rcpp::wrap(msfOUT(lambda, pivot));
+    return rcpp_result_gen;
+END_RCPP
+}
+// aplr
+Rcpp::NumericMatrix aplr(arma::mat matr, arma::vec perm);
+RcppExport SEXP _infinitefactor_aplr(SEXP matrSEXP, SEXP permSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< arma::mat >::type matr(matrSEXP);
+    Rcpp::traits::input_parameter< arma::vec >::type perm(permSEXP);
+    rcpp_result_gen = Rcpp::wrap(aplr(matr, perm));
+    return rcpp_result_gen;
+END_RCPP
+}
 // update_Lambda_mgps
 arma::mat update_Lambda_mgps(const arma::mat& Eta, const arma::mat& X, const arma::vec& sigma2_inv, const arma::mat& Phi, const arma::vec& tau);
 RcppExport SEXP _infinitefactor_update_Lambda_mgps(SEXP EtaSEXP, SEXP XSEXP, SEXP sigma2_invSEXP, SEXP PhiSEXP, SEXP tauSEXP) {
@@ -57,6 +93,9 @@ END_RCPP
 }
 
 static const R_CallMethodDef CallEntries[] = {
+    {"_infinitefactor_msf", (DL_FUNC) &_infinitefactor_msf, 2},
+    {"_infinitefactor_msfOUT", (DL_FUNC) &_infinitefactor_msfOUT, 2},
+    {"_infinitefactor_aplr", (DL_FUNC) &_infinitefactor_aplr, 2},
     {"_infinitefactor_update_Lambda_mgps", (DL_FUNC) &_infinitefactor_update_Lambda_mgps, 5},
     {"_infinitefactor_update_Lambda_dl", (DL_FUNC) &_infinitefactor_update_Lambda_dl, 5},
     {"_infinitefactor_update_Lambda_cusp", (DL_FUNC) &_infinitefactor_update_Lambda_cusp, 4},
