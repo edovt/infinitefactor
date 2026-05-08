@@ -12,7 +12,7 @@ bfa_mgps(
   k_init = NULL,
   prior_params = list(a_sigma = NULL, b_sigma = NULL, nu = NULL, a1 = NULL, a2 = NULL,
     alpha0 = NULL, alpha1 = NULL),
-  eps = 0.01,
+  eps = 0.1,
   verbose = TRUE
 )
 }
@@ -44,5 +44,21 @@ List with samples for each parameter
 Bayesian Factor Analysis and Covariance Estimation with an MGPS prior
 }
 \examples{
-NULL
+set.seed(219)
+
+# 0. Data simulation as in Bhattacharya & Dunson (2011)
+sim <- sim_data_bfa(n = 200, p = 20, k = 3)
+
+# 1. Adaptive number of factors, starting at floor(3*log(p)) = 8
+fit_mgps <- bfa_mgps(sim$X)
+k_fit <- summary_k(fit_mgps, real = sim$k_true) # returns median too
+plots_Sigma_X <- plot_Sigma_X(fit_mgps, real = sim$Sigma_X_true)
+plots_Sigma_X$main
+plots_Sigma_X$residual
+plots_Sigma_X$scatter
+
+# 2. Fixed number of factors -> MatchAlign
+fit_mgps_fixed <- bfa_mgps(sim$X, adapt = FALSE, k_init = k_fit)
+
+# TODO: add MatchAlign
 }

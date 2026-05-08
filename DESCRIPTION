@@ -20,6 +20,7 @@ Imports:
     ggplot2,
     GIGrvg,
     mvnfast,
+    patchwork,
     Rcpp,
     reshape2,
     stats,

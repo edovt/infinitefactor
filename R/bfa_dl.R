@@ -11,7 +11,19 @@
 #'
 #' @export
 #' @examples
-#' NULL
+#' set.seed(219)
+#'
+#' # 0. Data simulation as in Bhattacharya & Dunson (2011)
+#' sim <- sim_data_bfa(n = 200, p = 20, k = 3)
+#'
+#' # 1. Fixed number of factors (no adaptation in the DL case)
+#' fit_dl_fixed <- bfa_dl(sim$X, k = 6)
+#' plots_Sigma_X <- plot_Sigma_X(fit_dl_fixed, real = sim$Sigma_X_true)
+#' plots_Sigma_X$main
+#' plots_Sigma_X$residual
+#' plots_Sigma_X$scatter
+#'
+#' # TODO: add MatchAlign
 bfa_dl <- function(
   X,
   iter_warmup = 1000,
