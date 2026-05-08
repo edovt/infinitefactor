@@ -18,9 +18,7 @@ knitr::opts_chunk$set(
 <!-- badges: start -->
 <!-- badges: end -->
 
-The goal of `infinitefactor` is to provide samplers and post-processing functions for semi-parametric Bayesian infinite factor models. Implements different priors for the factor loadings such as MGPS, Row-wise and Column-wise Dirichlet-Laplace, CUSP, SIS and CMR (TODO: include references). Additionally, contains post-processing functions to return matrices that display rotational ambiguity to identifiability through successive application of orthogonalization procedures and resolution of column label and sign switching (TODO: rewrite this and include citation).
-
-Although `infinitefactor` can be used as a standalone tool, it's most important use is in the `blfr` package which implements Bayesian Latent Factor Regression models.
+The goal of `infinitefactor` is to provide samplers and post-processing functions for semi-parametric Bayesian infinite factor models and Bayesian Latent Factor Regression with Interactions from F. Ferrari & D. Dunson (2021) <doi:10.1080/01621459.2020.1745813>. Different priors for the factor loadings are implemented, such as MGPS from A. Bhattacharya & D. Dunson (2011) <doi:10.1093/biomet/asr013>, Row-wise Dirichlet-Laplace from A. Bhattacharya et al. (2015) <doi:10.1080/01621459.2014.960967>, CUSP from S. Legramanti et al. (2020) <doi:10.1093/biomet/asaa008>, SIS from L. Schiavon (2022) <doi:10.1093/biomet/asab056> and CMR from E. Bersson et al. (2025) <doi:10.48550/ARXIV.2504.08220>. Post-processing functions include the MatchAlign algorithm from E. Poworoznek et al. (2025) <doi:10.1214/25-BA1544>, which returns identifiable factor loadings through succesive application of orthogonalization procedures and resolution of column label and sign switching.
 
 ## Installation
 
@@ -31,11 +29,53 @@ You can install the development version of infinitefactor from [GitHub](https://
 pak::pak("edovt/infinitefactor")
 ```
 
-## Example
+## Example - bfa
 
-This is a basic example which shows you how to solve a common problem:
+This is a basic example of Bayesian Factor Analysis:
 
-```{r example}
+```{r example_bfa}
 library(infinitefactor)
-## basic example code
+
+set.seed(219)
+
+# 0. Data simulation as in Bhattacharya & Dunson (2011)
+sim <- sim_data_bfa(n = 200, p = 20, k = 3)
+
+# 1. Adaptive number of factors, starting at floor(3*log(p)) = 8
+fit_mgps <- bfa_mgps(sim$X, verbose = FALSE)
+k_fit <- summary_k(fit_mgps, real = sim$k_true) # returns median too
+plots_Sigma_X <- plot_Sigma_X(fit_mgps, real = sim$Sigma_X_true)
+plots_Sigma_X$scatter
+
+# 2. Fixed number of factors -> MatchAlign
+# MatchAlign seems to indicate that it is enough to use k = 3, the true k
+fit_mgps_fixed <- bfa_mgps(sim$X, adapt = FALSE, k_init = k_fit, verbose = FALSE)
+aligned <- match_align(fit_mgps_fixed)
+plot_match_align(aligned, "Lambda", "mean")
+```
+
+## Example - blfr
+
+```{r example_blfr}
+set.seed(219)
+
+# 1. Example without interactions
+sim <- sim_data_blfr(n = 200, n_test = 100, p = 20, k = 3)
+fit_mgps <- blfr_mgps(sim$y, sim$X, verbose = FALSE)
+
+# 1.1 Induced effect summaries
+Sigma_X_plots <- plot_Sigma_X(fit_mgps, real = sim$Sigma_X_true)
+Sigma_X_plots$scatter
+main_effects_plots <- plot_effects_X(
+    fit_mgps,
+    real_beta = sim$beta_X
+)
+main_effects_plots$main
+
+# 1.2 Match Align - seems to indicate that it is enough to use k = 3, the true k
+aligned <- match_align(fit_mgps)
+plot_match_align(aligned, "Lambda", "mean")
+
+# 1.3 Estimates on test set
+preds <- predict_blfr(fit_mgps, sim$X_test)
 ```

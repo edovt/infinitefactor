@@ -182,7 +182,9 @@ bfa_mgps <- function(
 
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
-  p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  if (verbose) {
+    p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  }
 
   # Constants across iterations
   shape_sigma <- a_sigma + n / 2
@@ -283,6 +285,8 @@ bfa_mgps <- function(
     if (verbose) utils::setTxtProgressBar(p_bar, iter)
   }
 
-  close(p_bar)
+  if (verbose) {
+    close(p_bar)
+  }
   samples
 }

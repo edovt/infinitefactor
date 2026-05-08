@@ -237,8 +237,10 @@ blfr_dl <- function(
 
   # 4. Gibbs sampler -------------------------------------------------------
   total_iter <- iter_warmup + iter_sampling
-  p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
   n_acceptances <- numeric(n)
+  if (verbose) {
+    p_bar <- utils::txtProgressBar(max = total_iter, style = 3)
+  }
 
   # Constants across iterations
   shape_sigmay <- (nu_y + n) / 2
@@ -318,6 +320,8 @@ blfr_dl <- function(
     if (verbose) utils::setTxtProgressBar(p_bar, iter)
   }
 
-  close(p_bar)
+  if (verbose) {
+    close(p_bar)
+  }
   samples
 }
