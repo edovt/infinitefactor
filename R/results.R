@@ -24,21 +24,21 @@ summary_k <- function(fit, real = NULL) {
   if (is.null(real)) {
     cat(sprintf(
       "Estimated k -- median: %d, 95%% CI: [%d, %d]\n",
-      as.integer(median(fit$k)),
-      as.integer(quantile(fit$k, 0.025)),
-      as.integer(quantile(fit$k, 0.975)),
+      as.integer(stats::median(fit$k)),
+      as.integer(stats::quantile(fit$k, 0.025)),
+      as.integer(stats::quantile(fit$k, 0.975)),
     ))
   } else {
     cat(sprintf(
       "Estimated k -- median: %d, 95%% CI: [%d, %d]  (true k = %d)\n",
-      as.integer(median(fit$k)),
-      as.integer(quantile(fit$k, 0.025)),
-      as.integer(quantile(fit$k, 0.975)),
+      as.integer(stats::median(fit$k)),
+      as.integer(stats::quantile(fit$k, 0.025)),
+      as.integer(stats::quantile(fit$k, 0.975)),
       real
     ))
   }
 
-  median(fit$k)
+  stats::median(fit$k)
 }
 
 #' Summary plots of the posterior covariance of X
@@ -46,12 +46,13 @@ summary_k <- function(fit, real = NULL) {
 #' @param fit Returned samples from any `bfa_*()` or `blfr_*()` function.
 #' @param real Real Sigma_X if known, `NULL` otherwise
 #'
-#' @returns List of plots. If `real=NULL`, `plots$main` is the plot of the
-#'     mean posterior covariance of X. Otherwise, three plots `main`, `residual`
-#'     and `scatter`: first compares mean posterior covariance with real
-#'     covariance, second a plot of the residuals between the two, and third
-#'     plot is a scatterplot of mean posterior elements vs real elements.
+#' @returns Named list of plots. If `real=NULL`, `plots$main` is the plot of the
+#' mean posterior covariance of X. Otherwise, three plots:
+#' * `main`: compares mean posterior covariance with real covariance
+#' * `residual`: plot of residuals between mean posterior and real covariance
+#' * `scatter`: scatterplot of mean posterior elements vs real elements.
 #'
+#' @importFrom rlang .data
 #' @export
 #' @examples
 #' set.seed(219)
@@ -102,7 +103,7 @@ plot_Sigma_X <- function(fit, real = NULL) {
       ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
     ) +
       ggplot2::geom_tile() +
-      ggplot2::facet_wrap(~panel) +
+      ggplot2::facet_wrap(~ .data$panel) +
       ggplot2::scale_fill_gradient2(
         low = "#3d52bf",
         mid = "white",
@@ -118,7 +119,7 @@ plot_Sigma_X <- function(fit, real = NULL) {
       ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
     ) +
       ggplot2::geom_tile() +
-      ggplot2::facet_wrap(~panel) +
+      ggplot2::facet_wrap(~ .data$panel) +
       ggplot2::scale_fill_gradient2(
         low = "#3d52bf",
         mid = "white",
@@ -133,7 +134,7 @@ plot_Sigma_X <- function(fit, real = NULL) {
     lims <- range(c(real[idx], Sigma_X_est[idx]))
     g_scat <- ggplot2::ggplot(
       data.frame(true = real[idx], est = Sigma_X_est[idx]),
-      ggplot2::aes(x = true, y = est)
+      ggplot2::aes(x = .data$true, y = .data$est)
     ) +
       ggplot2::geom_point(alpha = 0.4, size = 0.9) +
       ggplot2::geom_abline(colour = "red", linewidth = 0.8) +

@@ -55,6 +55,7 @@ plots_Sigma_X$scatter
 
 # 2. Fixed number of factors -> MatchAlign
 fit_cusp_fixed <- bfa_mgps(sim$X, adapt = FALSE, k_init = k_fit)
-
-# TODO: add MatchAlign
+aligned <- match_align(fit_cusp_fixed)
+plot_match_align(aligned, "Lambda", "mean")
+plot_match_align(aligned, "Eta", "mean")
 }

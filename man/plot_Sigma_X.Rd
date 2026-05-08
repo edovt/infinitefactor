@@ -12,11 +12,13 @@ plot_Sigma_X(fit, real = NULL)
 \item{real}{Real Sigma_X if known, \code{NULL} otherwise}
 }
 \value{
-List of plots. If \code{real=NULL}, \code{plots$main} is the plot of the
-mean posterior covariance of X. Otherwise, three plots \code{main}, \code{residual}
-and \code{scatter}: first compares mean posterior covariance with real
-covariance, second a plot of the residuals between the two, and third
-plot is a scatterplot of mean posterior elements vs real elements.
+Named list of plots. If \code{real=NULL}, \code{plots$main} is the plot of the
+mean posterior covariance of X. Otherwise, three plots:
+\itemize{
+\item \code{main}: compares mean posterior covariance with real covariance
+\item \code{residual}: plot of residuals between mean posterior and real covariance
+\item \code{scatter}: scatterplot of mean posterior elements vs real elements.
+}
 }
 \description{
 Summary plots of the posterior covariance of X

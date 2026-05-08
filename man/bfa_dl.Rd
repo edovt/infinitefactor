@@ -45,5 +45,7 @@ plots_Sigma_X$main
 plots_Sigma_X$residual
 plots_Sigma_X$scatter
 
-# TODO: add MatchAlign
+aligned <- match_align(fit_dl_fixed)
+plot_match_align(aligned, "Lambda", "mean")
+plot_match_align(aligned, "Eta", "mean")
 }
