@@ -64,15 +64,19 @@
 blfr_mgps <- function(
   y,
   X,
+  Z = NULL,
   iter_warmup = 1000,
   iter_sampling = 1000,
   k = NULL,
   induced = TRUE,
   interactions = FALSE,
+  covariates_interactions = FALSE,
   prior_params = list(
     nu_y = NULL,
     beta_var = NULL,
     Omega_var = NULL,
+    alpha_var = NULL,
+    Delta_var = NULL,
     a_sigma = NULL,
     b_sigma = NULL,
     nu = NULL,
@@ -109,6 +113,18 @@ blfr_mgps <- function(
   }
   if (anyNA(y) || any(!is.finite(y))) {
     stop("'y' must not contain NA, NaN, or Inf values.")
+  }
+  if (!is.matrix(Z)) {
+    Z <- as.matrix(Z)
+    if (!is.numeric(Z)) {
+      stop("'Z' must be a numeric matrix.")
+    }
+  }
+  if (anyNA(Z) || any(!is.finite(Z))) {
+    stop("'Z' must not contain NA, NaN, or Inf values.")
+  }
+  if (any(apply(Z, 2, stats::sd) == 0)) {
+    stop("'Z' has constant columns; remove or impute them before fitting.")
   }
 
   if (!is.null(k)) {
@@ -174,6 +190,8 @@ blfr_mgps <- function(
   nu_y_check <- prior_params$nu_y %||% 1
   beta_var_check <- prior_params$beta_var %||% 100
   Omega_var_check <- prior_params$Omega_var %||% 100
+  alpha_var_check <- prior_params$alpha_var %||% 100
+  Delta_var_check <- prior_params$Delta_var %||% 100
   a_sigma_check <- prior_params$a_sigma %||% 1
   b_sigma_check <- prior_params$b_sigma %||% 1
   nu_check <- prior_params$nu %||% 3
@@ -185,6 +203,14 @@ blfr_mgps <- function(
   }
   if (interactions && Omega_var_check <= 0) {
     stop("'Omega_var' must be positive.")
+  }
+  if (!is.null(Z)) {
+    if (alpha_var_check <= 0) {
+      stop("'alpha_var' must be positive")
+    }
+    if (covariates_interactions && Delta_var_check <= 0) {
+      stop("'Delta_var' must be positive.")
+    }
   }
   if (a_sigma_check <= 0 || b_sigma_check <= 0) {
     stop("'a_sigma' and 'b_sigma' must be positive.")
@@ -199,12 +225,18 @@ blfr_mgps <- function(
   sd_X <- apply(X, 2, stats::sd)
   scale_mat <- outer(sd_X, sd_X)
   X <- scale(X)
+  covariates <- !is.null(Z)
+  if (covariates) {
+    q <- ncol(Z)
+  }
 
   k <- k %||% as.integer(3 * log(p))
   mala_eps <- mala_eps %||% k^(-1 / 3)
   nu_y <- prior_params$nu_y %||% 1
   beta_var <- prior_params$beta_var %||% 100
   Omega_var <- prior_params$Omega_var %||% 100
+  alpha_var <- prior_params$beta_var %||% 100
+  Delta_var <- prior_params$Omega_var %||% 100
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
   nu <- prior_params$nu %||% 3
@@ -233,6 +265,15 @@ blfr_mgps <- function(
     samples$Omega_X <- array(NA, c(p, p, iter_sampling))
     samples$intercept_X <- numeric(iter_sampling)
   }
+  if (covariates) {
+    samples$alpha <- matrix(NA, q, iter_sampling)
+  }
+  if (covariates && covariates_interactions) {
+    samples$Delta <- array(NA, c(k, q, iter_sampling))
+  }
+  if (covariates && covariates_interactions && induced) {
+    samples$Delta_X <- array(NA, c(p, q, iter_sampling))
+  }
 
   # 3. Initialize parameters -----------------------------------------------
   delta_init <- c(stats::rgamma(1, a1, 1), stats::rgamma(k - 1, a2, 1))
@@ -249,12 +290,16 @@ blfr_mgps <- function(
     sigma2_y = 1 / stats::rgamma(1, nu_y / 2, nu_y / 2)
   )
   if (interactions) {
-    Omega_upper <- matrix(0, k, k)
-    Omega_upper[upper.tri(Omega_upper, diag = TRUE)] <- stats::rnorm(
+    reg_params$Omega <- vech2sym(stats::rnorm(
       k * (k + 1) / 2,
       sd = sqrt(Omega_var)
-    )
-    reg_params$Omega <- (Omega_upper + t(Omega_upper)) / 2
+    ))
+  }
+  if (covariates) {
+    reg_params$alpha <- stats::rnorm(q, sd = sqrt(alpha_var))
+    if (covariates_interactions) {
+      reg_params$Delta <- matrix(stats::rnorm(q * k), k, q)
+    }
   }
 
   # 4. Gibbs sampler -------------------------------------------------------
@@ -269,12 +314,14 @@ blfr_mgps <- function(
   shape_sigma <- a_sigma + n / 2
   shape_phi <- (nu + 1) / 2
   sd_X_inv <- diag(1 / sd_X)
+  dup_matrix <- matrixcalc::duplication.matrix(k)
 
   for (iter in 1:total_iter) {
     # 4.1 Update parameters
     latent_update <- latent_update_blfr(
       X,
       y,
+      Z,
       Eta,
       reg_params,
       mgps_params$Lambda,
@@ -290,11 +337,16 @@ blfr_mgps <- function(
     reg_params <- update_reg_params(
       reg_params,
       y,
+      Z,
       Eta,
       beta_var,
       Omega_var,
+      alpha_var,
+      Delta_var,
       shape_sigmay,
+      dup_matrix,
       n,
+      q,
       k
     )
 
