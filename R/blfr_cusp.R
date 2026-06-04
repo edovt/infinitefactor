@@ -2,11 +2,14 @@
 #'
 #' @param y Response vector
 #' @param X Predictors matrix
+#' @param Z optional matrix of covariates
 #' @param iter_warmup Number of warmup iterations to run per chain.
 #' @param iter_sampling Number of post-warmup iterations to run per chain.
 #' @param k Number of factors
 #' @param induced (logical) return induced effects of original predictors?
 #' @param interactions (logical) include interactions between latent factors?
+#' @param covariates_interactions (logical) include interactions between
+#'     covariates and latent factors?
 #' @param prior_params Parameters of the CUSP prior
 #' @param mala_eps If `interactions=TRUE` step-size of the MALA step for
 #'     latent factors. If `NULL`, uses `k^(-1/3)` as default.
@@ -49,15 +52,19 @@
 blfr_cusp <- function(
   y,
   X,
+  Z = NULL,
   iter_warmup = 1000,
   iter_sampling = 1000,
   k = NULL,
   induced = TRUE,
   interactions = FALSE,
+  covariates_interactions = FALSE,
   prior_params = list(
     nu_y = NULL,
     beta_var = NULL,
     Omega_var = NULL,
+    alpha_var = NULL,
+    Delta_var = NULL,
     a_sigma = NULL,
     b_sigma = NULL,
     alpha = NULL,
@@ -95,6 +102,17 @@ blfr_cusp <- function(
   }
   if (anyNA(y) || any(!is.finite(y))) {
     stop("'y' must not contain NA, NaN, or Inf values.")
+  }
+  if (!is.null(Z)) {
+    if (!is.matrix(Z)) {
+      Z <- as.matrix(Z)
+      if (!is.numeric(Z)) {
+        stop("'Z' must be a numeric matrix.")
+      }
+    }
+    if (anyNA(Z) || any(!is.finite(Z))) {
+      stop("'Z' must not contain NA, NaN, or Inf values.")
+    }
   }
 
   if (!is.null(k)) {
@@ -134,6 +152,11 @@ blfr_cusp <- function(
   if (!is.logical(interactions) || length(interactions) != 1) {
     stop("'interactions' must be a single logical value.")
   }
+  if (
+    !is.logical(covariates_interactions) || length(covariates_interactions) != 1
+  ) {
+    stop("'covariates_interactions' must be a single logical value.")
+  }
   if (!is.logical(adapt_mala_eps) || length(adapt_mala_eps) != 1) {
     stop("'adapt_mala_eps' must be a single logical value.")
   }
@@ -160,6 +183,8 @@ blfr_cusp <- function(
   nu_y_check <- prior_params$nu_y %||% 1
   beta_var_check <- prior_params$beta_var %||% 100
   Omega_var_check <- prior_params$Omega_var %||% 100
+  alpha_var_check <- prior_params$alpha_var %||% 100
+  Delta_var_check <- prior_params$Delta_var %||% 100
   a_sigma_check <- prior_params$a_sigma %||% 1
   b_sigma_check <- prior_params$b_sigma %||% 1
   alpha_check <- prior_params$alpha %||% 5
@@ -174,6 +199,14 @@ blfr_cusp <- function(
   }
   if (interactions && Omega_var_check <= 0) {
     stop("'Omega_var' must be positive.")
+  }
+  if (!is.null(Z)) {
+    if (alpha_var_check <= 0) {
+      stop("'alpha_var' must be positive")
+    }
+    if (covariates_interactions && Delta_var_check <= 0) {
+      stop("'Delta_var' must be positive.")
+    }
   }
   if (a_sigma_check <= 0 || b_sigma_check <= 0) {
     stop("'a_sigma' and 'b_sigma' must be positive.")
@@ -194,12 +227,20 @@ blfr_cusp <- function(
   sd_X <- apply(X, 2, stats::sd)
   scale_mat <- outer(sd_X, sd_X)
   X <- scale(X)
+  covariates <- !is.null(Z)
+  q <- if (covariates) ncol(Z) else NULL
+
+  if (!covariates && covariates_interactions) {
+    stop("Case of null alpha and non-null Delta not implemented")
+  }
 
   k <- k %||% as.integer(3 * log(p))
   mala_eps <- mala_eps %||% k^(-1 / 3)
   nu_y <- prior_params$nu_y %||% 1
   beta_var <- prior_params$beta_var %||% 100
   Omega_var <- prior_params$Omega_var %||% 100
+  alpha_var <- prior_params$alpha_var %||% 100
+  Delta_var <- prior_params$Delta_var %||% 100
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
   alpha <- prior_params$alpha %||% 5
@@ -227,6 +268,15 @@ blfr_cusp <- function(
     samples$Omega_X <- array(NA, c(p, p, iter_sampling))
     samples$intercept_X <- numeric(iter_sampling)
   }
+  if (covariates) {
+    samples$alpha <- matrix(NA, q, iter_sampling)
+  }
+  if (covariates && covariates_interactions) {
+    samples$Delta <- array(NA, c(k, q, iter_sampling))
+  }
+  if (covariates && covariates_interactions && induced) {
+    samples$Delta_X <- array(NA, c(p, q, iter_sampling))
+  }
 
   # 3. Initialize parameters -----------------------------------------------
   cusp_params <- list(
@@ -241,12 +291,20 @@ blfr_cusp <- function(
     sigma2_y = 1 / stats::rgamma(1, nu_y / 2, nu_y / 2)
   )
   if (interactions) {
-    Omega_upper <- matrix(0, k, k)
-    Omega_upper[upper.tri(Omega_upper, diag = TRUE)] <- stats::rnorm(
+    reg_params$Omega <- vech2sym(stats::rnorm(
       k * (k + 1) / 2,
       sd = sqrt(Omega_var)
-    )
-    reg_params$Omega <- (Omega_upper + t(Omega_upper)) / 2
+    ))
+  }
+  if (covariates) {
+    reg_params$alpha <- stats::rnorm(q, sd = sqrt(alpha_var))
+    if (covariates_interactions) {
+      reg_params$Delta <- matrix(
+        stats::rnorm(q * k, sd = sqrt(Delta_var)),
+        k,
+        q
+      )
+    }
   }
 
   # 4. Gibbs sampler -------------------------------------------------------
@@ -263,12 +321,14 @@ blfr_cusp <- function(
   norm_covariance <- diag(theta_inf, p)
   t_covariance <- diag(b_theta / a_theta, p)
   sd_X_inv <- diag(1 / sd_X)
+  dup_matrix <- matrixcalc::duplication.matrix(k)
 
   for (iter in 1:total_iter) {
     # 4.1 Update parameters
     latent_update <- latent_update_blfr(
       X,
       y,
+      Z,
       Eta,
       reg_params,
       cusp_params$Lambda,
@@ -284,11 +344,16 @@ blfr_cusp <- function(
     reg_params <- update_reg_params(
       reg_params,
       y,
+      Z,
       Eta,
       beta_var,
       Omega_var,
+      alpha_var,
+      Delta_var,
       shape_sigmay,
+      dup_matrix,
       n,
+      q,
       k
     )
 
@@ -334,6 +399,12 @@ blfr_cusp <- function(
       if (interactions) {
         samples$Omega[,, c_iter] <- reg_params$Omega
       }
+      if (covariates) {
+        samples$alpha[, c_iter] <- reg_params$alpha
+        if (covariates_interactions) {
+          samples$Delta[,, c_iter] <- reg_params$Delta
+        }
+      }
       if (induced) {
         L <- cusp_params$Lambda
         V <- solve(t(L) %*% diag(cusp_params$sigma2_inv) %*% L + diag(k))
@@ -346,6 +417,9 @@ blfr_cusp <- function(
             A %*%
             sd_X_inv
           samples$intercept_X[c_iter] <- sum(diag(reg_params$Omega %*% V))
+        }
+        if (covariates && covariates_interactions) {
+          samples$Delta_X[,, c_iter] <- sd_X_inv %*% t(A) %*% reg_params$Delta
         }
       }
     }

@@ -2,11 +2,14 @@
 #'
 #' @param y Response vector
 #' @param X Predictors matrix
+#' @param Z optional matrix of covariates
 #' @param iter_warmup Number of warmup iterations to run per chain.
 #' @param iter_sampling Number of post-warmup iterations to run per chain.
 #' @param k Number of factors
 #' @param induced (logical) return induced effects of original predictors?
 #' @param interactions (logical) include interactions between latent factors?
+#' @param covariates_interactions (logical) include interactions between
+#'     covariates and latent factors?
 #' @param prior_params Parameters of the MGPS prior
 #' @param mala_eps If `interactions=TRUE`, step-size of the MALA step for
 #'     latent factors. If `NULL`, uses `k^(-1/3)` as default.
@@ -114,17 +117,16 @@ blfr_mgps <- function(
   if (anyNA(y) || any(!is.finite(y))) {
     stop("'y' must not contain NA, NaN, or Inf values.")
   }
-  if (!is.matrix(Z)) {
-    Z <- as.matrix(Z)
-    if (!is.numeric(Z)) {
-      stop("'Z' must be a numeric matrix.")
+  if (!is.null(Z)) {
+    if (!is.matrix(Z)) {
+      Z <- as.matrix(Z)
+      if (!is.numeric(Z)) {
+        stop("'Z' must be a numeric matrix.")
+      }
     }
-  }
-  if (anyNA(Z) || any(!is.finite(Z))) {
-    stop("'Z' must not contain NA, NaN, or Inf values.")
-  }
-  if (any(apply(Z, 2, stats::sd) == 0)) {
-    stop("'Z' has constant columns; remove or impute them before fitting.")
+    if (anyNA(Z) || any(!is.finite(Z))) {
+      stop("'Z' must not contain NA, NaN, or Inf values.")
+    }
   }
 
   if (!is.null(k)) {
@@ -163,6 +165,11 @@ blfr_mgps <- function(
   }
   if (!is.logical(interactions) || length(interactions) != 1) {
     stop("'interactions' must be a single logical value.")
+  }
+  if (
+    !is.logical(covariates_interactions) || length(covariates_interactions) != 1
+  ) {
+    stop("'covariates_interactions' must be a single logical value.")
   }
   if (!is.logical(adapt_mala_eps) || length(adapt_mala_eps) != 1) {
     stop("'adapt_mala_eps' must be a single logical value.")
@@ -226,8 +233,10 @@ blfr_mgps <- function(
   scale_mat <- outer(sd_X, sd_X)
   X <- scale(X)
   covariates <- !is.null(Z)
-  if (covariates) {
-    q <- ncol(Z)
+  q <- if (covariates) ncol(Z) else NULL
+
+  if (!covariates && covariates_interactions) {
+    stop("Case of null alpha and non-null Delta not implemented")
   }
 
   k <- k %||% as.integer(3 * log(p))
@@ -235,8 +244,8 @@ blfr_mgps <- function(
   nu_y <- prior_params$nu_y %||% 1
   beta_var <- prior_params$beta_var %||% 100
   Omega_var <- prior_params$Omega_var %||% 100
-  alpha_var <- prior_params$beta_var %||% 100
-  Delta_var <- prior_params$Omega_var %||% 100
+  alpha_var <- prior_params$alpha_var %||% 100
+  Delta_var <- prior_params$Delta_var %||% 100
   a_sigma <- prior_params$a_sigma %||% 1
   b_sigma <- prior_params$b_sigma %||% 1
   nu <- prior_params$nu %||% 3
@@ -298,7 +307,11 @@ blfr_mgps <- function(
   if (covariates) {
     reg_params$alpha <- stats::rnorm(q, sd = sqrt(alpha_var))
     if (covariates_interactions) {
-      reg_params$Delta <- matrix(stats::rnorm(q * k), k, q)
+      reg_params$Delta <- matrix(
+        stats::rnorm(q * k, sd = sqrt(Delta_var)),
+        k,
+        q
+      )
     }
   }
 
@@ -391,6 +404,12 @@ blfr_mgps <- function(
       if (interactions) {
         samples$Omega[,, c_iter] <- reg_params$Omega
       }
+      if (covariates) {
+        samples$alpha[, c_iter] <- reg_params$alpha
+        if (covariates_interactions) {
+          samples$Delta[,, c_iter] <- reg_params$Delta
+        }
+      }
       if (induced) {
         L <- mgps_params$Lambda
         V <- solve(t(L) %*% diag(mgps_params$sigma2_inv) %*% L + diag(k))
@@ -403,6 +422,9 @@ blfr_mgps <- function(
             A %*%
             sd_X_inv
           samples$intercept_X[c_iter] <- sum(diag(reg_params$Omega %*% V))
+        }
+        if (covariates && covariates_interactions) {
+          samples$Delta_X[,, c_iter] <- sd_X_inv %*% t(A) %*% reg_params$Delta
         }
       }
     }
