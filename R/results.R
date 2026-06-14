@@ -26,7 +26,7 @@ summary_k <- function(fit, real = NULL) {
       "Estimated k -- median: %d, 95%% CI: [%d, %d]\n",
       as.integer(stats::median(fit$k)),
       as.integer(stats::quantile(fit$k, 0.025)),
-      as.integer(stats::quantile(fit$k, 0.975)),
+      as.integer(stats::quantile(fit$k, 0.975))
     ))
   } else {
     cat(sprintf(
