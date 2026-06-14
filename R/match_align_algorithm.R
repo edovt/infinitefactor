@@ -66,6 +66,9 @@ match_align <- function(fit, orth_procedure = "varimax") {
 #' @param summary Which summary metric to use? One of `c("mean", "median")`.
 #' @param color Color scheme. One of `c("green", "red", "wes")`
 #' @param title Optional plot title
+#' @param X_names Optional character vector of covariate names, of length equal
+#'   to the number of variables `p`. When supplied (and the plotted matrix has
+#'   `p` rows, i.e. `type = "Lambda"`), these are used to label the y axis.
 #'
 #' @returns ggplot object
 #'
@@ -90,7 +93,8 @@ plot_match_align <- function(
   type = c("Lambda", "Eta"),
   summary = c("mean", "median"),
   color = "green",
-  title = NULL
+  title = NULL,
+  X_names = NULL
 ) {
   type <- match.arg(type)
   summary <- match.arg(summary)
@@ -99,6 +103,14 @@ plot_match_align <- function(
   arr <- simplify2array(samples)
   reducer <- if (summary == "mean") base::mean else stats::median
   mat <- apply(arr, c(1L, 2L), reducer)
+  n_row <- nrow(mat)
+  n_fac <- ncol(mat)
+  if (!is.null(X_names) && length(X_names) != n_row) {
+    stop(sprintf(
+      "X_names has length %d but the %s matrix has %d rows.",
+      length(X_names), type, n_row
+    ))
+  }
 
   mat <- apply(mat, 2, rev)
   longmat <- reshape2::melt(mat)
@@ -130,6 +142,19 @@ plot_match_align <- function(
   }
 
   p <- p +
+    ggplot2::scale_x_continuous(
+      breaks = seq_len(n_fac),
+      labels = paste("Factor", seq_len(n_fac))
+    )
+  if (!is.null(X_names)) {
+    p <- p +
+      ggplot2::scale_y_continuous(
+        breaks = seq_len(n_row),
+        labels = rev(X_names)
+      )
+  }
+
+  p <- p +
     ggplot2::theme(
       axis.title.x = ggplot2::element_blank(),
       axis.title.y = ggplot2::element_blank(),
@@ -137,7 +162,12 @@ plot_match_align <- function(
       panel.border = ggplot2::element_blank(),
       panel.background = ggplot2::element_blank(),
       axis.ticks = ggplot2::element_blank(),
-      axis.text = ggplot2::element_blank(),
+      axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1),
+      axis.text.y = if (is.null(X_names)) {
+        ggplot2::element_blank()
+      } else {
+        ggplot2::element_text()
+      },
       legend.title = ggplot2::element_text(),
       plot.title = ggplot2::element_text(hjust = 0.5)
     ) +

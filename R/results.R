@@ -45,6 +45,9 @@ summary_k <- function(fit, real = NULL) {
 #'
 #' @param fit Returned samples from any `bfa_*()` or `blfr_*()` function.
 #' @param real Real Sigma_X if known, `NULL` otherwise
+#' @param X_names Optional character vector of covariate names, of length equal
+#'   to the number of variables in `X`. If supplied, these are used to label the
+#'   x and y axes of the covariance heatmaps.
 #'
 #' @returns Named list of plots. If `real=NULL`, `plots$main` is the plot of the
 #' mean posterior covariance of X. Otherwise, three plots:
@@ -66,12 +69,31 @@ summary_k <- function(fit, real = NULL) {
 #' plots_Sigma_X$main
 #' plots_Sigma_X$residual
 #' plots_Sigma_X$scatter
-plot_Sigma_X <- function(fit, real = NULL) {
+plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
   Sigma_X_est <- apply(fit$Sigma_X, c(1, 2), mean)
   p <- nrow(Sigma_X_est)
+  if (!is.null(X_names) && length(X_names) != p) {
+    stop(sprintf(
+      "X_names has length %d but Sigma_X has %d rows/columns.",
+      length(X_names),
+      p
+    ))
+  }
   to_tile <- function(df) {
     df$row <- p - df$row + 1
     df
+  }
+  add_axis_names <- function(g) {
+    if (is.null(X_names)) {
+      return(g)
+    }
+    g +
+      ggplot2::scale_x_continuous(breaks = seq_len(p), labels = X_names) +
+      ggplot2::scale_y_continuous(breaks = seq_len(p), labels = rev(X_names)) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.text.y = ggplot2::element_text()
+      )
   }
   heat_theme <- ggplot2::theme_minimal(base_size = 16) +
     ggplot2::theme(
@@ -146,7 +168,11 @@ plot_Sigma_X <- function(fit, real = NULL) {
       ) +
       ggplot2::theme_minimal(base_size = 15)
 
-    return(list(main = g_main, residual = g_resid, scatter = g_scat))
+    return(list(
+      main = add_axis_names(g_main),
+      residual = add_axis_names(g_resid),
+      scatter = g_scat
+    ))
   } else {
     clim <- max(abs(Sigma_X_est))
     df_main <- to_tile(rbind(mat_long(Sigma_X_est, "Estimated Sigma_X")))
@@ -164,9 +190,9 @@ plot_Sigma_X <- function(fit, real = NULL) {
       ) +
       ggplot2::coord_fixed() +
       heat_theme +
-      ggplot2::labs(fill = NULL)
+      ggplot2::labs(fill = NULL, title = "Covariance estimator")
 
-    return(list(main = g_main))
+    return(list(main = add_axis_names(g_main)))
   }
 }
 
@@ -175,13 +201,21 @@ plot_Sigma_X <- function(fit, real = NULL) {
 #' @param fit_blfr Returned samples from any `blfr_*()` function
 #' @param real_beta Real vector of main effects, if known
 #' @param real_intercept Real intercept, if known
+#' @param X_names Optional character vector of covariate names, of length equal
+#'   to the number of predictors `p`. If supplied, these label the x axis of the
+#'   caterpillar plot (prefixed with "Intercept" when the fit has an intercept).
 #'
 #' @returns Named list of plots
 #'
 #' @export
 #' @examples
 #' NULL
-plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
+plot_effects_X <- function(
+  fit_blfr,
+  real_beta = NULL,
+  real_intercept = NULL,
+  X_names = NULL
+) {
   if (!is.null(real_intercept) && is.null(real_beta)) {
     stop("real_beta cannot be NULL if real_intercept is supplied.")
   }
@@ -195,6 +229,15 @@ plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
     real <- c(real_intercept, real_beta)
   } else {
     real <- real_beta
+  }
+
+  n_pred <- nrow(fit_blfr$beta_X)
+  if (!is.null(X_names) && length(X_names) != n_pred) {
+    stop(sprintf(
+      "X_names has length %d but there are %d predictors.",
+      length(X_names),
+      n_pred
+    ))
   }
 
   betaX_mean <- rowMeans(fit_blfr$beta_X)
@@ -211,6 +254,19 @@ plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
     lo = betaX_q05,
     hi = betaX_q95
   )
+
+  add_x_names <- function(g) {
+    if (is.null(X_names)) {
+      return(g)
+    }
+    x_labels <- if (intercept) c("Intercept", X_names) else X_names
+    g +
+      ggplot2::scale_x_continuous(breaks = df$idx, labels = x_labels) +
+      ggplot2::xlab(NULL) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)
+      )
+  }
 
   if (is.null(real_beta)) {
     g_caterpillar <- ggplot2::ggplot(df, ggplot2::aes(x = .data$idx)) +
@@ -231,7 +287,7 @@ plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
       ) +
       ggplot2::theme_minimal(base_size = 13)
 
-    return(list(main = g_caterpillar))
+    return(list(main = add_x_names(g_caterpillar)))
   } else {
     df$true <- real
     g_caterpillar <- ggplot2::ggplot(df, ggplot2::aes(x = .data$idx)) +
@@ -275,7 +331,7 @@ plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
       ) +
       ggplot2::theme_minimal(base_size = 13)
 
-    return(list(main = g_caterpillar, scatter = g_scat))
+    return(list(main = add_x_names(g_caterpillar), scatter = g_scat))
   }
 }
 
@@ -283,21 +339,43 @@ plot_effects_X <- function(fit_blfr, real_beta = NULL, real_intercept = NULL) {
 #'
 #' @param fit_blfr Returned samples from any `blfr_*()` function with interactions
 #' @param real Real matrix of induced interaction effects, if known
+#' @param X_names Optional character vector of covariate names, of length equal
+#'   to the number of variables in `X`. If supplied, these are used to label both
+#'   the x and y axes of the interaction-effect heatmaps.
 #'
 #' @returns Named list of plots
 #'
 #' @export
 #' @examples
 #' NULL
-plot_Omega_X <- function(fit_blfr, real = NULL) {
+plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
   if (!("Omega_X" %in% names(fit_blfr))) {
     stop("Model not fitted with interactions")
   }
   Omega_X_est <- apply(fit_blfr$Omega_X, c(1, 2), mean)
   p <- nrow(Omega_X_est)
+  if (!is.null(X_names) && length(X_names) != p) {
+    stop(sprintf(
+      "X_names has length %d but Omega_X has %d rows/columns.",
+      length(X_names),
+      p
+    ))
+  }
   to_tile <- function(df) {
     df$row <- p - df$row + 1
     df
+  }
+  add_axis_names <- function(g) {
+    if (is.null(X_names)) {
+      return(g)
+    }
+    g +
+      ggplot2::scale_x_continuous(breaks = seq_len(p), labels = X_names) +
+      ggplot2::scale_y_continuous(breaks = seq_len(p), labels = rev(X_names)) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1),
+        axis.text.y = ggplot2::element_text()
+      )
   }
   heat_theme <- ggplot2::theme_minimal(base_size = 16) +
     ggplot2::theme(
@@ -371,7 +449,11 @@ plot_Omega_X <- function(fit_blfr, real = NULL) {
       ) +
       ggplot2::theme_minimal(base_size = 15)
 
-    return(list(main = g_main, residual = g_resid, scatter = g_scat))
+    return(list(
+      main = add_axis_names(g_main),
+      residual = add_axis_names(g_resid),
+      scatter = g_scat
+    ))
   } else {
     clim <- max(abs(Omega_X_est))
     df_main <- to_tile(rbind(mat_long(Omega_X_est, "Estimated Omega_X")))
@@ -391,7 +473,7 @@ plot_Omega_X <- function(fit_blfr, real = NULL) {
       heat_theme +
       ggplot2::labs(fill = NULL, title = "Estimated Omega_X entries")
 
-    return(list(main = g_main))
+    return(list(main = add_axis_names(g_main)))
   }
 }
 
