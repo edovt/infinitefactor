@@ -4,7 +4,13 @@
 \alias{plot_Omega_X}
 \title{Summary Plots of Induced Interaction Effects}
 \usage{
-plot_Omega_X(fit_blfr, real = NULL, X_names = NULL)
+plot_Omega_X(
+  fit_blfr,
+  real = NULL,
+  X_names = NULL,
+  mask_ci = TRUE,
+  level = 0.95
+)
 }
 \arguments{
 \item{fit_blfr}{Returned samples from any \verb{blfr_*()} function with interactions}
@@ -14,6 +20,12 @@ plot_Omega_X(fit_blfr, real = NULL, X_names = NULL)
 \item{X_names}{Optional character vector of covariate names, of length equal
 to the number of variables in \code{X}. If supplied, these are used to label both
 the x and y axes of the interaction-effect heatmaps.}
+
+\item{mask_ci}{If \code{TRUE} (default), entries whose \code{level} credible interval
+contains 0 are faded out in the estimated-effect heatmap, so that only the
+credibly non-zero interactions stand out.}
+
+\item{level}{Credible-interval level used for the mask. Defaults to \code{0.95}.}
 }
 \value{
 Named list of plots

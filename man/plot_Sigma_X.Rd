@@ -4,23 +4,27 @@
 \alias{plot_Sigma_X}
 \title{Summary Plots of Posterior Covariance}
 \usage{
-plot_Sigma_X(fit, real = NULL, X_names = NULL)
+plot_Sigma_X(fit, real = NULL, X_names = NULL, covariance = TRUE)
 }
 \arguments{
 \item{fit}{Returned samples from any \verb{bfa_*()} or \verb{blfr_*()} function.}
 
-\item{real}{Real Sigma_X if known, \code{NULL} otherwise}
+\item{real}{Real matrix if known, \code{NULL} otherwise. When \code{covariance = TRUE}
+this is the real covariance matrix. When \code{covariance = FALSE} it is the real
+correlation matrix.}
 
 \item{X_names}{Optional character vector of covariate names, of length equal
-to the number of variables in \code{X}. If supplied, these are used to label the
-x and y axes of the covariance heatmaps.}
+to the number of variables in \code{X}. Used to label axes of plots.}
+
+\item{covariance}{If \code{TRUE} (default), plots the posterior covariance matrix.
+If \code{FALSE}, plots the implied correlation matrix instead.}
 }
 \value{
 Named list of plots. If \code{real=NULL}, \code{plots$main} is the plot of the
-mean posterior covariance of X. Otherwise, three plots:
+mean posterior covariance (or correlation) of X. Otherwise, three plots:
 \itemize{
-\item \code{main}: compares mean posterior covariance with real covariance
-\item \code{residual}: plot of residuals between mean posterior and real covariance
+\item \code{main}: compares mean posterior estimate with the real matrix
+\item \code{residual}: plot of residuals between mean posterior and real matrix
 \item \code{scatter}: scatterplot of mean posterior elements vs real elements.
 }
 }

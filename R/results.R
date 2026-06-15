@@ -44,15 +44,18 @@ summary_k <- function(fit, real = NULL) {
 #' Summary Plots of Posterior Covariance
 #'
 #' @param fit Returned samples from any `bfa_*()` or `blfr_*()` function.
-#' @param real Real Sigma_X if known, `NULL` otherwise
+#' @param real Real matrix if known, `NULL` otherwise. When `covariance = TRUE`
+#'   this is the real covariance matrix. When `covariance = FALSE` it is the real
+#'   correlation matrix.
 #' @param X_names Optional character vector of covariate names, of length equal
-#'   to the number of variables in `X`. If supplied, these are used to label the
-#'   x and y axes of the covariance heatmaps.
+#'   to the number of variables in `X`. Used to label axes of plots.
+#' @param covariance If `TRUE` (default), plots the posterior covariance matrix.
+#'   If `FALSE`, plots the implied correlation matrix instead.
 #'
 #' @returns Named list of plots. If `real=NULL`, `plots$main` is the plot of the
-#' mean posterior covariance of X. Otherwise, three plots:
-#' * `main`: compares mean posterior covariance with real covariance
-#' * `residual`: plot of residuals between mean posterior and real covariance
+#' mean posterior covariance (or correlation) of X. Otherwise, three plots:
+#' * `main`: compares mean posterior estimate with the real matrix
+#' * `residual`: plot of residuals between mean posterior and real matrix
 #' * `scatter`: scatterplot of mean posterior elements vs real elements.
 #'
 #' @importFrom rlang .data
@@ -69,8 +72,12 @@ summary_k <- function(fit, real = NULL) {
 #' plots_Sigma_X$main
 #' plots_Sigma_X$residual
 #' plots_Sigma_X$scatter
-plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
+plot_Sigma_X <- function(fit, real = NULL, X_names = NULL, covariance = TRUE) {
   Sigma_X_est <- apply(fit$Sigma_X, c(1, 2), mean)
+  if (!covariance) {
+    Sigma_X_est <- stats::cov2cor(Sigma_X_est)
+  }
+  mat_label <- if (covariance) "Sigma_X" else "Corr_X"
   p <- nrow(Sigma_X_est)
   if (!is.null(X_names) && length(X_names) != p) {
     stop(sprintf(
@@ -111,12 +118,12 @@ plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
     rlim <- max(abs(resid))
 
     df_main <- to_tile(rbind(
-      mat_long(real, "True Sigma_X"),
-      mat_long(Sigma_X_est, "Estimated Sigma_X")
+      mat_long(real, sprintf("True %s", mat_label)),
+      mat_long(Sigma_X_est, sprintf("Estimated %s", mat_label))
     ))
     df_main$panel <- factor(
       df_main$panel,
-      levels = c("True Sigma_X", "Estimated Sigma_X")
+      levels = sprintf(c("True %s", "Estimated %s"), mat_label)
     )
     df_resid <- to_tile(mat_long(resid, "Residual"))
 
@@ -162,8 +169,8 @@ plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
       ggplot2::geom_abline(colour = "red", linewidth = 0.8) +
       ggplot2::coord_fixed(xlim = lims, ylim = lims) +
       ggplot2::labs(
-        x = "True Sigma_X entries",
-        y = "Estimated Sigma_X entries",
+        x = sprintf("True %s entries", mat_label),
+        y = sprintf("Estimated %s entries", mat_label),
         title = "Entry-wise comparison (upper triangle)"
       ) +
       ggplot2::theme_minimal(base_size = 15)
@@ -175,7 +182,9 @@ plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
     ))
   } else {
     clim <- max(abs(Sigma_X_est))
-    df_main <- to_tile(rbind(mat_long(Sigma_X_est, "Estimated Sigma_X")))
+    df_main <- to_tile(rbind(
+      mat_long(Sigma_X_est, sprintf("Estimated %s", mat_label))
+    ))
 
     g_main <- ggplot2::ggplot(
       df_main,
@@ -190,7 +199,14 @@ plot_Sigma_X <- function(fit, real = NULL, X_names = NULL) {
       ) +
       ggplot2::coord_fixed() +
       heat_theme +
-      ggplot2::labs(fill = NULL, title = "Covariance estimator")
+      ggplot2::labs(
+        fill = NULL,
+        title = if (covariance) {
+          "Covariance estimator"
+        } else {
+          "Correlation estimator"
+        }
+      )
 
     return(list(main = add_axis_names(g_main)))
   }
@@ -342,13 +358,23 @@ plot_effects_X <- function(
 #' @param X_names Optional character vector of covariate names, of length equal
 #'   to the number of variables in `X`. If supplied, these are used to label both
 #'   the x and y axes of the interaction-effect heatmaps.
+#' @param mask_ci If `TRUE` (default), entries whose `level` credible interval
+#'   contains 0 are faded out in the estimated-effect heatmap, so that only the
+#'   credibly non-zero interactions stand out.
+#' @param level Credible-interval level used for the mask. Defaults to `0.95`.
 #'
 #' @returns Named list of plots
 #'
 #' @export
 #' @examples
 #' NULL
-plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
+plot_Omega_X <- function(
+  fit_blfr,
+  real = NULL,
+  X_names = NULL,
+  mask_ci = TRUE,
+  level = 0.95
+) {
   if (!("Omega_X" %in% names(fit_blfr))) {
     stop("Model not fitted with interactions")
   }
@@ -360,6 +386,16 @@ plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
       length(X_names),
       p
     ))
+  }
+  # Per-entry credible interval mask: entries whose CI contains 0 are made
+  # transparent so that only the credibly non-zero interactions are coloured.
+  if (mask_ci) {
+    probs <- c((1 - level) / 2, 1 - (1 - level) / 2)
+    Omega_X_ci <- apply(fit_blfr$Omega_X, c(1, 2), stats::quantile, probs = probs)
+    signif_mat <- Omega_X_ci[1, , ] > 0 | Omega_X_ci[2, , ] < 0
+    mask_vec <- !as.vector(signif_mat)
+  } else {
+    mask_vec <- rep(FALSE, p * p)
   }
   to_tile <- function(df) {
     df$row <- p - df$row + 1
@@ -391,10 +427,10 @@ plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
     clim <- max(abs(c(real, Omega_X_est)))
     rlim <- max(abs(resid))
 
-    df_main <- to_tile(rbind(
-      mat_long(real, "True Omega_X"),
-      mat_long(Omega_X_est, "Estimated Omega_X")
-    ))
+    df_true <- mat_long(real, "True Omega_X")
+    df_est <- mat_long(Omega_X_est, "Estimated Omega_X")
+    df_est$value[mask_vec] <- NA
+    df_main <- to_tile(rbind(df_true, df_est))
     df_main$panel <- factor(
       df_main$panel,
       levels = c("True Omega_X", "Estimated Omega_X")
@@ -405,23 +441,31 @@ plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
       df_main,
       ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
     ) +
-      ggplot2::geom_tile() +
+      ggplot2::geom_tile(colour = "grey80", linewidth = 0.2) +
       ggplot2::facet_wrap(~ .data$panel) +
       ggplot2::scale_fill_gradient2(
         low = "#3d52bf",
         mid = "white",
         high = "#800000",
-        limits = c(-clim, clim)
+        limits = c(-clim, clim),
+        na.value = "transparent"
       ) +
       ggplot2::coord_fixed() +
       heat_theme +
-      ggplot2::labs(fill = NULL)
+      ggplot2::labs(
+        fill = NULL,
+        caption = if (mask_ci) {
+          sprintf("Blank: %g%% CI contains 0", 100 * level)
+        } else {
+          NULL
+        }
+      )
 
     g_resid <- ggplot2::ggplot(
       df_resid,
       ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
     ) +
-      ggplot2::geom_tile() +
+      ggplot2::geom_tile(colour = "grey80", linewidth = 0.2) +
       ggplot2::facet_wrap(~ .data$panel) +
       ggplot2::scale_fill_gradient2(
         low = "#3d52bf",
@@ -456,22 +500,33 @@ plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
     ))
   } else {
     clim <- max(abs(Omega_X_est))
-    df_main <- to_tile(rbind(mat_long(Omega_X_est, "Estimated Omega_X")))
+    df_main <- mat_long(Omega_X_est, "Estimated Omega_X")
+    df_main$value[mask_vec] <- NA
+    df_main <- to_tile(df_main)
 
     g_main <- ggplot2::ggplot(
       df_main,
       ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
     ) +
-      ggplot2::geom_tile() +
+      ggplot2::geom_tile(colour = "grey80", linewidth = 0.2) +
       ggplot2::scale_fill_gradient2(
         low = "#3d52bf",
         mid = "white",
         high = "#800000",
-        limits = c(-clim, clim)
+        limits = c(-clim, clim),
+        na.value = "transparent"
       ) +
       ggplot2::coord_fixed() +
       heat_theme +
-      ggplot2::labs(fill = NULL, title = "Estimated Omega_X entries")
+      ggplot2::labs(
+        fill = NULL,
+        title = "Estimated Omega_X entries",
+        caption = if (mask_ci) {
+          sprintf("Blank: %g%% CI contains 0", 100 * level)
+        } else {
+          NULL
+        }
+      )
 
     return(list(main = add_axis_names(g_main)))
   }
@@ -670,7 +725,10 @@ plot_Delta_X <- function(
     }
     if (!is.null(Z_names)) {
       g <- g +
-        ggplot2::scale_y_continuous(breaks = seq_len(q), labels = rev(Z_names)) +
+        ggplot2::scale_y_continuous(
+          breaks = seq_len(q),
+          labels = rev(Z_names)
+        ) +
         ggplot2::theme(axis.text.y = ggplot2::element_text())
     }
     g
@@ -680,7 +738,10 @@ plot_Delta_X <- function(
     if (nrow(real) != p || ncol(real) != q) {
       stop(sprintf(
         "real has dimension %d x %d but Delta_X is %d x %d (p x q).",
-        nrow(real), ncol(real), p, q
+        nrow(real),
+        ncol(real),
+        p,
+        q
       ))
     }
     real <- t(real) # match q x p orientation of Delta_X_est
