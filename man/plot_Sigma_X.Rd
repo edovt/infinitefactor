@@ -4,12 +4,16 @@
 \alias{plot_Sigma_X}
 \title{Summary Plots of Posterior Covariance}
 \usage{
-plot_Sigma_X(fit, real = NULL)
+plot_Sigma_X(fit, real = NULL, X_names = NULL)
 }
 \arguments{
 \item{fit}{Returned samples from any \verb{bfa_*()} or \verb{blfr_*()} function.}
 
 \item{real}{Real Sigma_X if known, \code{NULL} otherwise}
+
+\item{X_names}{Optional character vector of covariate names, of length equal
+to the number of variables in \code{X}. If supplied, these are used to label the
+x and y axes of the covariance heatmaps.}
 }
 \value{
 Named list of plots. If \code{real=NULL}, \code{plots$main} is the plot of the

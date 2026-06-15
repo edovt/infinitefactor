@@ -4,12 +4,16 @@
 \alias{plot_Omega_X}
 \title{Summary Plots of Induced Interaction Effects}
 \usage{
-plot_Omega_X(fit_blfr, real = NULL)
+plot_Omega_X(fit_blfr, real = NULL, X_names = NULL)
 }
 \arguments{
 \item{fit_blfr}{Returned samples from any \verb{blfr_*()} function with interactions}
 
 \item{real}{Real matrix of induced interaction effects, if known}
+
+\item{X_names}{Optional character vector of covariate names, of length equal
+to the number of variables in \code{X}. If supplied, these are used to label both
+the x and y axes of the interaction-effect heatmaps.}
 }
 \value{
 Named list of plots

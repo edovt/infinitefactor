@@ -477,6 +477,302 @@ plot_Omega_X <- function(fit_blfr, real = NULL, X_names = NULL) {
   }
 }
 
+#' Summary Plots of Covariate Effects
+#' @param fit_blfr Returned samples from any `blfr_*()` function with covariates
+#' @param real Real vector of covariate effects, if known
+#' @param Z_names Optional character vector of covariate names, of length equal
+#'   to the number of covariates `q`.
+#'
+#' @returns Named list of plots
+#'
+#' @export
+#' @examples
+#' NULL
+plot_effects_Z <- function(fit_blfr, real = NULL, Z_names = NULL) {
+  if (!("alpha" %in% names(fit_blfr))) {
+    stop("Model not fitted with covariates")
+  }
+  alpha_est <- apply(fit_blfr$alpha, 1, mean)
+  alpha_q05 <- apply(fit_blfr$alpha, 1, stats::quantile, probs = 0.025)
+  alpha_q95 <- apply(fit_blfr$alpha, 1, stats::quantile, probs = 0.975)
+  q <- length(alpha_est)
+  if (!is.null(Z_names) && length(Z_names) != q) {
+    stop(sprintf(
+      "Z_names has length %d but alpha has %d elements.",
+      length(Z_names),
+      q
+    ))
+  }
+
+  df <- data.frame(
+    idx = seq_along(alpha_est),
+    est = alpha_est,
+    lo = alpha_q05,
+    hi = alpha_q95
+  )
+  add_z_names <- function(g) {
+    if (is.null(Z_names)) {
+      return(g)
+    }
+    g +
+      ggplot2::scale_x_continuous(breaks = df$idx, labels = Z_names) +
+      ggplot2::xlab(NULL) +
+      ggplot2::theme(
+        axis.text.x = ggplot2::element_text(
+          angle = 45,
+          hjust = 1,
+          vjust = 1,
+          size = 20
+        )
+      )
+  }
+
+  if (is.null(real)) {
+    g_caterpillar <- ggplot2::ggplot(df, ggplot2::aes(x = .data$idx)) +
+      ggplot2::geom_errorbar(
+        ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+        width = 0,
+        alpha = 0.5
+      ) +
+      ggplot2::geom_point(
+        ggplot2::aes(y = .data$est),
+        colour = "#800000",
+        size = 1.5
+      ) +
+      ggplot2::labs(
+        x = "Covariate index",
+        y = expression(alpha[Z]),
+        title = "Covariates regression coefficients (95% CI)"
+      ) +
+      ggplot2::theme_minimal(base_size = 13)
+
+    return(list(main = add_z_names(g_caterpillar)))
+  } else {
+    df$true <- real
+    g_caterpillar <- ggplot2::ggplot(df, ggplot2::aes(x = .data$idx)) +
+      ggplot2::geom_errorbar(
+        ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+        width = 0,
+        alpha = 0.5
+      ) +
+      ggplot2::geom_point(
+        ggplot2::aes(y = .data$est),
+        colour = "#800000",
+        size = 1.5
+      ) +
+      ggplot2::geom_point(
+        ggplot2::aes(y = .data$true),
+        colour = "#3d52bf",
+        size = 1.5,
+        shape = 4
+      ) +
+      ggplot2::labs(
+        x = "Covariate index",
+        y = expression(alpha[Z]),
+        title = "Covariates regression coefficients (95% CI)",
+        caption = "x = true,   . = posterior mean"
+      ) +
+      ggplot2::theme_minimal(base_size = 13)
+
+    lims <- range(c(df$true, df$lo, df$hi))
+    g_scat <- ggplot2::ggplot(df, ggplot2::aes(x = .data$true, y = .data$est)) +
+      ggplot2::geom_errorbar(
+        ggplot2::aes(ymin = .data$lo, ymax = .data$hi),
+        width = 0,
+        alpha = 0.4
+      ) +
+      ggplot2::geom_point(size = 1.2) +
+      ggplot2::geom_abline(colour = "red") +
+      ggplot2::coord_fixed(xlim = lims, ylim = lims) +
+      ggplot2::labs(
+        x = expression("True " * alpha[Z]),
+        y = expression("Estimated " * alpha[Z])
+      ) +
+      ggplot2::theme_minimal(base_size = 13)
+
+    return(list(main = add_z_names(g_caterpillar), scatter = g_scat))
+  }
+}
+
+#' Summary Plots of Induced Covariate and Predictor effects.
+#' @param fit_blfr Returned samples from any `blfr_*()` function with covariates
+#' @param real Real matrix of induced covariate and predictor interaction effects,
+#'   if known
+#' @param X_names Optional character vector of predictor names, of length equal
+#'   to the number of variables in `X`.
+#' @param Z_names Optional character vector of covariate names, of length equal
+#'   to the number of covariates `q`
+#'
+#' @returns Named list of plots
+#'
+#' @export
+#' @examples
+#' NULL
+plot_Delta_X <- function(
+  fit_blfr,
+  real = NULL,
+  X_names = NULL,
+  Z_names = NULL
+) {
+  if (!("Delta_X" %in% names(fit_blfr))) {
+    stop("Model not fitted with covariate-predictor interactions")
+  }
+  # I take the transpose since in general q < p
+  Delta_X_est <- t(apply(fit_blfr$Delta_X, c(1, 2), mean)) # q x p
+  q <- nrow(Delta_X_est)
+  p <- ncol(Delta_X_est)
+  if (!is.null(X_names) && length(X_names) != p) {
+    stop(sprintf(
+      "X_names has length %d but Delta_X has %d rows.",
+      length(X_names),
+      p
+    ))
+  }
+  if (!is.null(Z_names) && length(Z_names) != q) {
+    stop(sprintf(
+      "Z_names has length %d but Delta_X has %d columns.",
+      length(Z_names),
+      q
+    ))
+  }
+
+  # Delta_X_est is q x p: row = covariate (y axis), col = predictor (x axis)
+  to_long <- function(mat, label) {
+    nr <- nrow(mat)
+    nc <- ncol(mat)
+    data.frame(
+      row = rep(seq_len(nr), nc),
+      col = rep(seq_len(nc), each = nr),
+      value = as.vector(mat),
+      panel = label
+    )
+  }
+  to_tile <- function(df) {
+    df$row <- q - df$row + 1
+    df
+  }
+  heat_theme <- ggplot2::theme_minimal(base_size = 16) +
+    ggplot2::theme(
+      axis.title = ggplot2::element_blank(),
+      axis.text = ggplot2::element_blank(),
+      axis.ticks = ggplot2::element_blank(),
+      panel.grid = ggplot2::element_blank(),
+      strip.text = ggplot2::element_text(face = "bold"),
+      legend.key.height = ggplot2::unit(0.8, "cm")
+    )
+  add_axis_names <- function(g) {
+    if (!is.null(X_names)) {
+      g <- g +
+        ggplot2::scale_x_continuous(breaks = seq_len(p), labels = X_names) +
+        ggplot2::theme(
+          axis.text.x = ggplot2::element_text(angle = 45, hjust = 1, vjust = 1)
+        )
+    }
+    if (!is.null(Z_names)) {
+      g <- g +
+        ggplot2::scale_y_continuous(breaks = seq_len(q), labels = rev(Z_names)) +
+        ggplot2::theme(axis.text.y = ggplot2::element_text())
+    }
+    g
+  }
+
+  if (!is.null(real)) {
+    if (nrow(real) != p || ncol(real) != q) {
+      stop(sprintf(
+        "real has dimension %d x %d but Delta_X is %d x %d (p x q).",
+        nrow(real), ncol(real), p, q
+      ))
+    }
+    real <- t(real) # match q x p orientation of Delta_X_est
+    resid <- Delta_X_est - real
+    clim <- max(abs(c(real, Delta_X_est)))
+    rlim <- max(abs(resid))
+
+    df_main <- to_tile(rbind(
+      to_long(real, "True Delta_X"),
+      to_long(Delta_X_est, "Estimated Delta_X")
+    ))
+    df_main$panel <- factor(
+      df_main$panel,
+      levels = c("True Delta_X", "Estimated Delta_X")
+    )
+    df_resid <- to_tile(to_long(resid, "Residual"))
+
+    g_main <- ggplot2::ggplot(
+      df_main,
+      ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
+    ) +
+      ggplot2::geom_tile() +
+      ggplot2::facet_wrap(~ .data$panel, ncol = 1) +
+      ggplot2::scale_fill_gradient2(
+        low = "#3d52bf",
+        mid = "white",
+        high = "#800000",
+        limits = c(-clim, clim)
+      ) +
+      ggplot2::coord_fixed() +
+      heat_theme +
+      ggplot2::labs(fill = NULL)
+
+    g_resid <- ggplot2::ggplot(
+      df_resid,
+      ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
+    ) +
+      ggplot2::geom_tile() +
+      ggplot2::facet_wrap(~ .data$panel) +
+      ggplot2::scale_fill_gradient2(
+        low = "#3d52bf",
+        mid = "white",
+        high = "#800000",
+        limits = c(-rlim, rlim)
+      ) +
+      ggplot2::coord_fixed() +
+      heat_theme +
+      ggplot2::labs(fill = NULL)
+
+    lims <- range(c(real, Delta_X_est))
+    g_scat <- ggplot2::ggplot(
+      data.frame(true = as.vector(real), est = as.vector(Delta_X_est)),
+      ggplot2::aes(x = .data$true, y = .data$est)
+    ) +
+      ggplot2::geom_point(alpha = 0.4, size = 0.9) +
+      ggplot2::geom_abline(colour = "red", linewidth = 0.8) +
+      ggplot2::coord_fixed(xlim = lims, ylim = lims) +
+      ggplot2::labs(
+        x = "True Delta_X entries",
+        y = "Estimated Delta_X entries",
+        title = "Entry-wise comparison"
+      ) +
+      ggplot2::theme_minimal(base_size = 15)
+
+    return(list(
+      main = add_axis_names(g_main),
+      residual = add_axis_names(g_resid),
+      scatter = g_scat
+    ))
+  } else {
+    clim <- max(abs(Delta_X_est))
+    df_main <- to_tile(to_long(Delta_X_est, "Estimated Delta_X"))
+
+    g_main <- ggplot2::ggplot(
+      df_main,
+      ggplot2::aes(x = .data$col, y = .data$row, fill = .data$value)
+    ) +
+      ggplot2::geom_tile() +
+      ggplot2::scale_fill_gradient2(
+        low = "#3d52bf",
+        mid = "white",
+        high = "#800000",
+        limits = c(-clim, clim)
+      ) +
+      ggplot2::coord_fixed() +
+      heat_theme +
+      ggplot2::labs(fill = NULL, title = "Estimated Delta_X entries")
+
+    return(list(main = add_axis_names(g_main)))
+  }
+}
+
 #' Make Predictions with a Latent Regression Model
 #'
 #' @param fit_blfr Returned samples from any `blfr_*()` function

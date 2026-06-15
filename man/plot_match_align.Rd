@@ -9,7 +9,8 @@ plot_match_align(
   type = c("Lambda", "Eta"),
   summary = c("mean", "median"),
   color = "green",
-  title = NULL
+  title = NULL,
+  X_names = NULL
 )
 }
 \arguments{
@@ -22,6 +23,10 @@ plot_match_align(
 \item{color}{Color scheme. One of \code{c("green", "red", "wes")}}
 
 \item{title}{Optional plot title}
+
+\item{X_names}{Optional character vector of covariate names, of length equal
+to the number of variables \code{p}. When supplied (and the plotted matrix has
+\code{p} rows, i.e. \code{type = "Lambda"}), these are used to label the y axis.}
 }
 \value{
 ggplot object

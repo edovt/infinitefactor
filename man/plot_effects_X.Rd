@@ -4,7 +4,12 @@
 \alias{plot_effects_X}
 \title{Summary Plots of Induced Main Effects}
 \usage{
-plot_effects_X(fit_blfr, real_beta = NULL, real_intercept = NULL)
+plot_effects_X(
+  fit_blfr,
+  real_beta = NULL,
+  real_intercept = NULL,
+  X_names = NULL
+)
 }
 \arguments{
 \item{fit_blfr}{Returned samples from any \verb{blfr_*()} function}
@@ -12,6 +17,10 @@ plot_effects_X(fit_blfr, real_beta = NULL, real_intercept = NULL)
 \item{real_beta}{Real vector of main effects, if known}
 
 \item{real_intercept}{Real intercept, if known}
+
+\item{X_names}{Optional character vector of covariate names, of length equal
+to the number of predictors \code{p}. If supplied, these label the x axis of the
+caterpillar plot (prefixed with "Intercept" when the fit has an intercept).}
 }
 \value{
 Named list of plots
